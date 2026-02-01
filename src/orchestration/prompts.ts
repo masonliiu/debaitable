@@ -39,7 +39,11 @@ const baseInstructions = [
   "Return JSON only.",
   "Use double quotes for all keys and string values.",
   "Do not include code fences or commentary.",
+  "Arrays must contain only strings, not objects.",
 ].join(" ")
+
+const compactKeyHint =
+  "Compact context keys: rk=roleKey, s=summary, rec=recommendation, rat=rationale, r=risks, a=assumptions, act=actions, c=critiques or conditions, rb=rebuttals, q=openQuestions, v=vote, rs=reasons."
 
 const proposalSchemaHint = (roleKey: string) =>
   [
@@ -107,6 +111,7 @@ export const buildCritiquePrompt = (
     "",
     "Round 1 proposals:",
     formatProposalList(proposals),
+    compactKeyHint,
     "",
     "Task: Provide critiques and rebuttals from your perspective.",
     "Output JSON schema:",
@@ -132,9 +137,11 @@ export const buildConvergencePrompt = (
     "",
     "Round 1 proposals:",
     formatProposalList(proposals),
+    compactKeyHint,
     "",
     "Round 2 critiques:",
     formatCritiqueList(critiques),
+    compactKeyHint,
     "",
     "Task: Converge and vote.",
     "Output JSON schema:",
@@ -158,12 +165,15 @@ export const buildDecisionRecordPrompt = (
     "",
     "Round 1 proposals:",
     formatProposalList(proposals),
+    compactKeyHint,
     "",
     "Round 2 critiques:",
     formatCritiqueList(critiques),
+    compactKeyHint,
     "",
     "Round 3 convergence:",
     formatConvergenceList(convergence),
+    compactKeyHint,
     "",
     "Vote tally:",
     formatVoteTally(tallyVotes(convergence)),
