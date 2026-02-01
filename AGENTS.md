@@ -26,13 +26,16 @@ Follow it exactly and keep changes small and auditable.
 - Zod schemas live in `src/core/schemas.ts`.
 
 ## Build / Lint / Test Commands
-No build, lint, or test commands are currently defined in this repo.
+Current commands:
+- Dev: `npm run dev`
+- Typecheck: `npm run typecheck`
+
+No build, lint, or test commands are defined yet.
 If you add tooling, update this section immediately.
 
 Suggested conventions once tooling exists:
 - Build: `npm run build`
 - Lint: `npm run lint`
-- Typecheck: `npm run typecheck`
 - Test (all): `npm run test`
 - Test (single): use your runner's single-test flag:
   - Vitest: `npx vitest run path/to/test --testNamePattern "name"`
