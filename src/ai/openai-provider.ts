@@ -85,7 +85,6 @@ export const createOpenAiProvider = (
               { role: "system", content: request.system },
               { role: "user", content: request.prompt },
             ],
-            temperature: 0,
           }),
           signal: controller.signal,
         })
