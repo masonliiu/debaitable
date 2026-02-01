@@ -44,6 +44,8 @@ This document is the contract for any agent operating in this repo.
 
 ## Commit Policy
 - Commit after each discrete task (docs, schema, API, UI, jobs)
+- Prefer single-file commits unless the files are tiny or tightly coupled
+- If a file grows significantly, commit in small increments as you go
 - Keep commits under control: small, reviewable diffs
 - Use descriptive commit messages focused on intent
 
