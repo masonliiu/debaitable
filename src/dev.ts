@@ -1,4 +1,4 @@
-import { StaticLlmProvider } from "./ai"
+import { createOpenAiProvider, StaticLlmProvider } from "./ai"
 import { roleDefinitions } from "./core"
 import { runDemo } from "./cli"
 
@@ -68,7 +68,9 @@ const buildResponses = () => {
   return responses
 }
 
-const provider = new StaticLlmProvider(buildResponses())
+const provider = process.env.OPENAI_API_KEY
+  ? createOpenAiProvider()
+  : new StaticLlmProvider(buildResponses())
 
 const input = {
   title: "Launch a new onboarding flow",
