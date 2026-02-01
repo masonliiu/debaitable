@@ -125,6 +125,10 @@ If different commands are added, replace these examples with the actual ones.
 - Sanitize any user input used in prompts.
 - Avoid storing raw prompt content when possible.
 
+## Environment Variables
+- `OPENAI_API_KEY`
+- `OPENAI_MODEL` (default: gpt-5)
+
 ## Commit Policy (when committing is requested)
 - Commit after each discrete task (docs, schema, API, UI, jobs).
 - Prefer single-file commits unless tightly coupled.

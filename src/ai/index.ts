@@ -1,4 +1,5 @@
 export * from "./schemas"
+export * from "./openai-provider"
 export * from "./mock-provider"
 export * from "./types"
 export * from "./validate"
