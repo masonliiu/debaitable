@@ -51,3 +51,9 @@ export type Decision = {
   status: DecisionStatus
   visibility: Visibility
 }
+
+export type DecisionRun = {
+  runId: string
+  decisionId: string
+  status: DecisionStatus
+}

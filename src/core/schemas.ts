@@ -64,3 +64,9 @@ export const DecisionSchema = z.object({
   status: DecisionStatusSchema,
   visibility: VisibilitySchema,
 })
+
+export const DecisionRunSchema = z.object({
+  runId: z.string().min(1),
+  decisionId: z.string().min(1),
+  status: DecisionStatusSchema,
+})
