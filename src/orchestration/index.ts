@@ -1,4 +1,5 @@
 export * from "./constants"
+export * from "./compact"
 export * from "./guards"
 export * from "./normalize"
 export * from "./prompts"

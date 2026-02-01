@@ -1,6 +1,8 @@
+import { OUTPUT_TEXT_LIMIT } from "./constants"
 import { ConvergenceOutput, CritiqueOutput, ProposalOutput } from "./types"
 
-const normalizeText = (value: string) => value.trim()
+const normalizeText = (value: string) =>
+  value.trim().slice(0, OUTPUT_TEXT_LIMIT)
 
 const normalizeList = (values: string[]) =>
   values.map(normalizeText).filter((value) => value.length > 0)

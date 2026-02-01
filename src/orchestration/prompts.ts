@@ -5,6 +5,11 @@ import {
   CritiqueOutput,
   ProposalOutput,
 } from "./types"
+import {
+  formatCompactConvergence,
+  formatCompactCritiques,
+  formatCompactProposals,
+} from "./compact"
 import { formatVoteTally, tallyVotes } from "./votes"
 
 const formatDecisionInput = (input: DecisionInput): string =>
@@ -20,38 +25,14 @@ const formatDecisionInput = (input: DecisionInput): string =>
     2
   )
 
-const formatProposal = (output: ProposalOutput): object => ({
-  roleKey: output.roleKey,
-  summary: output.summary,
-  recommendation: output.recommendation,
-  rationale: output.rationale,
-  risks: output.risks,
-  assumptions: output.assumptions,
-  actions: output.actions,
-})
-
-const formatCritique = (output: CritiqueOutput): object => ({
-  roleKey: output.roleKey,
-  critiques: output.critiques,
-  rebuttals: output.rebuttals,
-  openQuestions: output.openQuestions,
-})
-
-const formatConvergence = (output: ConvergenceOutput): object => ({
-  roleKey: output.roleKey,
-  vote: output.vote,
-  reasons: output.reasons,
-  conditions: output.conditions,
-})
-
 const formatProposalList = (outputs: ProposalOutput[]): string =>
-  JSON.stringify(outputs.map(formatProposal), null, 2)
+  formatCompactProposals(outputs)
 
 const formatCritiqueList = (outputs: CritiqueOutput[]): string =>
-  JSON.stringify(outputs.map(formatCritique), null, 2)
+  formatCompactCritiques(outputs)
 
 const formatConvergenceList = (outputs: ConvergenceOutput[]): string =>
-  JSON.stringify(outputs.map(formatConvergence), null, 2)
+  formatCompactConvergence(outputs)
 
 const baseInstructions = [
   `Prompt version: ${PROMPT_VERSION}.`,
