@@ -36,13 +36,21 @@ structured debate rounds and outputs a Decision Record plus an audit trail of al
    - `npm run cli`
    - Keyboard-first full-screen workflow:
      - Type a prompt/question in the left input pane and press `Enter` to run
-     - Click in the input pane or press `i` to re-focus input after any run
-     - `a` toggle audit timeline, `d` toggle detailed record
-     - `m` switch model mode (OpenAI/heuristic when API key is present)
-     - `r` rerun selected history item with edits
-     - `[` and `]` move through session history, `tab` cycles pane focus
+     - Arrow keys move focus between prompt/history/output panes
+     - `a` toggles audit timeline
+     - `m` switches model mode (OpenAI/heuristic when API key is present)
+     - `?` opens compact help
 5. Typecheck:
    - `npm run typecheck`
+
+## Install From npm (Global CLI)
+1. Publish package from this repo:
+   - `npm login`
+   - `npm publish --access public`
+2. Install globally:
+   - `npm i -g debaitable`
+3. Run from any terminal:
+   - `debaitable`
 
 ## Repository Scope (Today)
 - Engine modules under `src/`:

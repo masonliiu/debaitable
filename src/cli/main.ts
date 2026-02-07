@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import { runTui } from './tui'
 
 runTui().catch((error: unknown) => {

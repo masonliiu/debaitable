@@ -1,12 +1,25 @@
 {
   "name": "debaitable",
   "version": "0.0.1",
-  "private": true,
+  "description": "Terminal-based multi-role debate engine for structured decisions.",
+  "license": "UNLICENSED",
   "type": "module",
+  "bin": {
+    "debaitable": "dist/main.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "dev": "tsx src/dev.ts",
     "cli": "tsx src/cli/main.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "build": "tsup src/cli/main.ts --format esm --target node18 --out-dir dist --clean",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepublishOnly": "npm run typecheck && npm run build"
   },
   "dependencies": {
     "@types/blessed": "^0.1.27",
@@ -14,6 +27,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "tsup": "^8.5.1",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3"
   }
