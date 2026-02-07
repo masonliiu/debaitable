@@ -35,6 +35,7 @@ const CONTEXT_TIP =
   'Include context, goals, constraints, budget, timeline, and must-not-fail risks.'
 
 const ENV_FILE_PATH = path.resolve(process.cwd(), '.env')
+const SESSION_FILE_PATH = path.resolve(process.cwd(), '.debaitable-session.json')
 
 const upsertEnvLine = (source: string, key: string, value: string): string => {
   const safeValue = value.replace(/\r?\n/g, '').trim()
@@ -107,6 +108,32 @@ const persistOpenAiEnv = async (apiKey: string): Promise<void> => {
   next = upsertEnvLine(next, 'OPENAI_MODEL', process.env.OPENAI_MODEL?.trim() || 'gpt-5')
   await writeFile(ENV_FILE_PATH, next, 'utf8')
   await chmod(ENV_FILE_PATH, 0o600)
+}
+
+const loadPersistedHistory = async (): Promise<SessionHistoryItem[]> => {
+  let source = ''
+  try {
+    source = await readFile(SESSION_FILE_PATH, 'utf8')
+  } catch (error) {
+    if (!(error instanceof Error) || !('code' in error) || error.code !== 'ENOENT') {
+      throw error
+    }
+    return []
+  }
+
+  try {
+    const parsed = JSON.parse(source)
+    if (!Array.isArray(parsed)) {
+      return []
+    }
+    return parsed as SessionHistoryItem[]
+  } catch {
+    return []
+  }
+}
+
+const persistHistory = async (history: SessionHistoryItem[]): Promise<void> => {
+  await writeFile(SESSION_FILE_PATH, `${JSON.stringify(history, null, 2)}\n`, 'utf8')
 }
 
 const ensureOpenAiApiKey = async (): Promise<void> => {
@@ -256,18 +283,21 @@ const renderHistoryLabel = (item: SessionHistoryItem): string =>
 
 class DecisionTuiApp {
   private screen: blessed.Widgets.Screen
-  private inputBox: blessed.Widgets.TextboxElement
+  private inputBox: blessed.Widgets.TextareaElement
   private tipBox: blessed.Widgets.BoxElement
   private outputBox: blessed.Widgets.BoxElement
   private historyBox: blessed.Widgets.ListElement
   private helpModal: blessed.Widgets.BoxElement
   private footer: blessed.Widgets.BoxElement
+  private loadingTimer: NodeJS.Timeout | null = null
+  private loadingFrame = 0
   private state: TuiState
   private session: TuiSessionContext
 
-  constructor() {
+  constructor(history: SessionHistoryItem[]) {
     const defaultMode: 'openai' | 'heuristic' = process.env.OPENAI_API_KEY ? 'openai' : 'heuristic'
     this.state = createInitialState(defaultMode)
+    this.state.history = history
 
     this.session = {
       store: new MemoryDecisionStore(),
@@ -292,10 +322,10 @@ class DecisionTuiApp {
       height: 7,
       tags: true,
       style: { fg: THEME.brandFg, bg: THEME.panelBg },
-      content: `${BRAND_ASCII}\nHave specialized, trained LLMs debate to achieve a refined consensus.`,
+      content: `${BRAND_ASCII}\nMake specialized, trained LLMs debate to achieve a refined consensus.`,
     })
 
-    this.inputBox = blessed.textbox({
+    this.inputBox = blessed.textarea({
       parent: this.screen,
       top: 7,
       left: 0,
@@ -308,9 +338,10 @@ class DecisionTuiApp {
       border: 'line',
       style: { border: { fg: THEME.panelBorder }, fg: THEME.primaryText, bg: THEME.bg },
       value: '',
-    })
-    this.inputBox.on('submit', () => {
-      void this.runCurrentInput()
+      scrollable: true,
+      alwaysScroll: true,
+      scrollbar: { ch: ' ' },
+      wrap: true,
     })
 
     this.tipBox = blessed.box({
@@ -494,11 +525,50 @@ class DecisionTuiApp {
 
   private render(): void {
     this.tipBox.setContent(CONTEXT_TIP)
-    this.outputBox.setContent(renderResult(this.state))
+    if (this.state.runState === 'running') {
+      this.outputBox.setContent(this.renderLoadingOutput())
+    } else {
+      this.outputBox.setContent(renderResult(this.state))
+    }
     this.footer.setContent(this.renderFooterContent())
     this.updateHistory()
     this.updateFocusStyles()
     this.screen.render()
+  }
+
+  private renderLoadingOutput(): string {
+    const dots = '.'.repeat((this.loadingFrame % 4) + 1).padEnd(4, ' ')
+    const spinner = ['|', '/', '-', '\\'][this.loadingFrame % 4]
+    return [
+      '{bold}Generating decision record{/bold}',
+      '',
+      `{gray-fg}${spinner} Generating${dots}{/gray-fg}`,
+      '',
+      '{gray-fg}Running multi-role debate and consolidating the decision...{/gray-fg}',
+    ].join('\n')
+  }
+
+  private startLoadingAnimation(): void {
+    if (this.loadingTimer) {
+      return
+    }
+    this.loadingTimer = setInterval(() => {
+      if (this.state.runState !== 'running') {
+        return
+      }
+      this.loadingFrame += 1
+      this.outputBox.setContent(this.renderLoadingOutput())
+      this.screen.render()
+    }, 180)
+  }
+
+  private stopLoadingAnimation(): void {
+    if (!this.loadingTimer) {
+      return
+    }
+    clearInterval(this.loadingTimer)
+    this.loadingTimer = null
+    this.loadingFrame = 0
   }
 
   private async runCurrentInput(): Promise<void> {
@@ -516,6 +586,7 @@ class DecisionTuiApp {
     const input = buildInputFromSituation(prompt)
     this.state.currentInput = input
     this.state.runState = 'running'
+    this.startLoadingAnimation()
     this.log(`Running decision in ${this.state.mode.toUpperCase()} mode...`)
     this.render()
 
@@ -535,6 +606,7 @@ class DecisionTuiApp {
         },
         ...this.state.history,
       ].slice(0, 50)
+      await persistHistory(this.state.history)
       this.state.selectedHistoryIndex = 0
       this.state.runState = 'done'
       this.setStatus(`Done. ${recordDecision.toUpperCase()} | ${run.artifactPath}`)
@@ -543,6 +615,8 @@ class DecisionTuiApp {
       const message = error instanceof Error ? error.message : String(error)
       this.log(`Error: ${message}`)
       this.setStatus(`Error: ${message}`)
+    } finally {
+      this.stopLoadingAnimation()
     }
 
     this.render()
@@ -577,6 +651,13 @@ class DecisionTuiApp {
       }
       this.screen.destroy()
       process.exit(0)
+    })
+
+    this.screen.key(['enter'], () => {
+      if (!this.helpModal.hidden || !this.isTypingInPrompt()) {
+        return
+      }
+      void this.runCurrentInput()
     })
 
     this.screen.key(['C-c'], () => {
@@ -642,6 +723,7 @@ class DecisionTuiApp {
 export const runTui = async (): Promise<void> => {
   await hydrateEnvFromFile()
   await ensureOpenAiApiKey()
-  const app = new DecisionTuiApp()
+  const history = await loadPersistedHistory()
+  const app = new DecisionTuiApp(history)
   app.run()
 }
