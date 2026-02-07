@@ -1,54 +1,44 @@
 # Quoraim
 
-Quoraim is a multi-agent decision engine for product and team choices. It runs structured debate rounds across specialized roles, then outputs a Decision Record with rationale, tradeoffs, risks, and an actionable plan.
+Quoraim is an artifact-first multi-agent decision engine. Instead of free-form chat, it runs
+structured debate rounds and outputs a Decision Record plus an audit trail of all role outputs.
 
-## Why Quoraim
-Most decision tools are unstructured chat. Quoraim is artifact-first: it produces a clear, auditable record that teams can review, compare, and iterate on.
+## What It Does
+- Runs a 3-round debate pipeline:
+  - Round 1: independent proposals per role
+  - Round 2: critiques and rebuttals
+  - Round 3: convergence vote
+- Produces a structured `DecisionRecord`:
+  - summary, rationale, tradeoffs, risks, actions, confidence, minority report
+- Stores all rounds and run states in a persistence layer
+- Supports OpenAI-backed generation and deterministic local heuristic mode
+- Includes an interactive TUI CLI that saves JSON artifacts under `artifacts/`
 
-## Core Features (MVP)
-- Multi-round debate pipeline (proposal -> critique -> convergence)
-- Specialized roles (Strategist, Skeptic, Risk Analyst, Execution Planner)
-- Decision Record artifact with minority report
-- Audit trail of every round
-- Asynchronous runs with progress tracking
+## Current Architecture
+1. API service validates and sanitizes decision input.
+2. Decision is persisted and enqueued as a background-style job payload.
+3. Job runner executes orchestration rounds via role prompts.
+4. Outputs are schema-validated with Zod at each boundary.
+5. Final record and full round audit trail are stored and returned.
 
-## Stack
-- Next.js (App Router)
-- TypeScript
-- TanStack Query
-- Tailwind CSS
-- Zod
-- Prisma + PostgreSQL (Neon)
-- Trigger.dev (background jobs)
-- OpenAI (gpt-5)
-
-## Architecture (High Level)
-1. UI submits decision input.
-2. API creates a Decision and enqueues a background job.
-3. Trigger.dev runs debate rounds and aggregates outputs.
-4. Decision Record and debate rounds are stored in Postgres.
-5. UI polls job status and renders results.
-
-## Getting Started
-1. Install dependencies
+## Run It
+1. Install dependencies:
    - `npm install`
-2. Configure environment variables (see below)
-3. Run the dev server
+2. Optional environment:
+   - `OPENAI_API_KEY` (if omitted, CLI uses deterministic heuristic provider)
+   - `OPENAI_MODEL` (default: `gpt-5`)
+3. Run demo:
    - `npm run dev`
+4. Run interactive TUI:
+   - `npm run cli`
+5. Typecheck:
+   - `npm run typecheck`
 
-## Environment Variables
-- `DATABASE_URL`
-- `OPENAI_API_KEY`
-- `OPENAI_MODEL` (default: gpt-5)
-- `TRIGGER_API_KEY`
-- `TRIGGER_API_URL`
-
-## Roadmap
-- Role presets and decision modes
-- Auth + user-scoped histories
-- Decision sharing (unlisted/public)
-- Model comparison and stability checks
-- Decision diffing
+## Repository Scope (Today)
+- Engine modules under `src/`:
+  - `core`, `api`, `orchestration`, `jobs`, `persistence`, `ai`, `cli`
+- In-memory queue and store are the default runtime adapters.
+- No web UI or external DB wiring in this repo yet.
 
 ## License
 All rights reserved. No license is granted to use, copy, modify, or distribute this software.
