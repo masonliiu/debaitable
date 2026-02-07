@@ -1,9 +1,12 @@
-node_modules
-dist
+node_modules/
+dist/
+artifacts/
+.debaitable-session.json
+
 .env
 .env.*
-.DS_Store
-.debaitable-session.json
-artifacts/
 
-.venv
+.DS_Store
+npm-debug.log*
+
+.venv/

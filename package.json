@@ -17,6 +17,7 @@
   "scripts": {
     "dev": "tsx src/dev.ts",
     "cli": "tsx src/cli/main.ts",
+    "dev:web": "sh -c 'if [ -f web/package.json ]; then npm --prefix web run dev; else echo \"web/ not set up yet\"; fi'",
     "build:cli": "tsup src/cli/main.ts --format esm --target node18 --out-dir dist --clean",
     "build:web": "sh -c 'if [ -f web/package.json ]; then npm --prefix web run build; else echo \"web/ not set up yet\"; fi'",
     "build": "npm run build:cli",

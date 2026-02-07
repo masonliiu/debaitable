@@ -63,6 +63,7 @@ structured debate rounds and outputs a Decision Record plus an audit trail of al
 ## Repository Scope (Today)
 - Engine modules under `src/`:
   - `core`, `api`, `orchestration`, `jobs`, `persistence`, `ai`, `cli`
+- Frontend workspace under `web/` (scaffolded; framework can be added later)
 - In-memory queue and store are the default runtime adapters.
 - No web UI or external DB wiring in this repo yet.
 

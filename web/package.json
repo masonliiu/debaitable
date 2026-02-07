@@ -1,0 +1,9 @@
+{
+  "name": "debaitable-web",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "dev": "echo \"Web scaffold ready. Install a frontend framework in web/ (e.g. Vite or Next.js).\"",
+    "build": "echo \"Web scaffold ready. Replace this with your frontend build command.\""
+  }
+}
