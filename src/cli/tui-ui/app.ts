@@ -394,11 +394,7 @@ class DecisionTuiApp {
     this.historyBox.on('select', (_item, index) => {
       this.state.selectedHistoryIndex = Number(index)
       this.historyTopUpPrimed = false
-      const selected = this.state.history[this.state.selectedHistoryIndex]
-      if (selected) {
-        this.state.currentResult = selected.result
-        this.state.currentInput = selected.input
-      }
+      this.previewHistorySelection()
       this.render()
     })
 
@@ -552,6 +548,15 @@ class DecisionTuiApp {
       return Math.min(rawSelected, Math.max(this.state.history.length - 1, 0))
     }
     return this.state.selectedHistoryIndex
+  }
+
+  private previewHistorySelection(): void {
+    const item = this.state.history[this.state.selectedHistoryIndex]
+    if (!item) {
+      return
+    }
+    this.state.currentResult = item.result
+    this.state.currentInput = item.input
   }
 
   private log(message: string): void {
@@ -750,24 +755,42 @@ class DecisionTuiApp {
     })
 
     this.historyBox.key(['up'], () => {
-      const selectedIndex = this.getHistorySelectionIndex()
-      if (selectedIndex === 0) {
-        if (!this.historyTopUpPrimed) {
-          this.historyTopUpPrimed = true
-          this.render()
-          return false
-        }
-        this.historyTopUpPrimed = false
-        this.focusInput()
+      if (this.state.history.length === 0) {
         return false
       }
+      const selectedIndex = this.getHistorySelectionIndex()
+      if (selectedIndex > 0) {
+        this.historyTopUpPrimed = false
+        this.state.selectedHistoryIndex = selectedIndex - 1
+        this.previewHistorySelection()
+        this.render()
+        return false
+      }
+
+      if (!this.historyTopUpPrimed) {
+        this.historyTopUpPrimed = true
+        this.render()
+        return false
+      }
+
       this.historyTopUpPrimed = false
-      return true
+      this.focusInput()
+      return false
     })
 
     this.historyBox.key(['down'], () => {
       this.historyTopUpPrimed = false
-      return true
+      if (this.state.history.length === 0) {
+        return false
+      }
+      const selectedIndex = this.getHistorySelectionIndex()
+      const nextIndex = Math.min(this.state.history.length - 1, selectedIndex + 1)
+      if (nextIndex !== selectedIndex) {
+        this.state.selectedHistoryIndex = nextIndex
+        this.previewHistorySelection()
+        this.render()
+      }
+      return false
     })
 
     this.historyBox.key(['right'], () => {
