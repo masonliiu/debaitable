@@ -133,7 +133,7 @@ class DecisionTuiApp {
       height: 7,
       tags: true,
       style: { fg: THEME.brandFg, bg: THEME.panelBg },
-      content: `${BRAND_ASCII}\n  Structured multi-role decisions with concise, auditable outputs.`,
+      content: `${BRAND_ASCII}\nStructured debate. Defensible decisions.`,
     })
 
     this.inputBox = blessed.textbox({
@@ -172,7 +172,7 @@ class DecisionTuiApp {
       top: 17,
       left: 0,
       width: '34%',
-      bottom: 5,
+      bottom: 4,
       label: ' Session History ',
       border: 'line',
       keys: true,
@@ -192,7 +192,7 @@ class DecisionTuiApp {
       top: 7,
       left: '34%',
       width: '66%',
-      bottom: 5,
+      bottom: 4,
       label: ' Output ',
       border: 'line',
       style: { border: { fg: THEME.panelBorder }, fg: THEME.primaryText, bg: THEME.bg },
@@ -210,7 +210,7 @@ class DecisionTuiApp {
       bottom: 0,
       left: 0,
       width: '100%',
-      height: 5,
+      height: 4,
       tags: true,
       style: { fg: THEME.secondaryText, bg: THEME.panelBg },
       content: this.renderFooterContent(),
@@ -237,8 +237,8 @@ class DecisionTuiApp {
     const mode = this.state.mode.toUpperCase()
     return [
       ` Status: ${this.state.statusMessage} | Mode: ${mode}`,
-      ' [Enter] Run  [Tab] Focus Cycle  [Ctrl+R] Rerun Selected  [Ctrl+C] Quit',
-      ' [F2] Details  [F3] Audit  [F4] Model  [History Enter] Load Prompt',
+      ' [Enter] Run  [Tab] Focus  [R/Ctrl+R] Rerun  [Q/Ctrl+C] Quit',
+      ' [D/A/M] or [F2/F3/F4] for details, audit, and mode',
       '',
     ].join('\n')
   }
@@ -354,7 +354,7 @@ class DecisionTuiApp {
   }
 
   private bindKeys(): void {
-    this.screen.key(['C-c'], () => {
+    this.screen.key(['q', 'C-c'], () => {
       this.screen.destroy()
       process.exit(0)
     })
@@ -371,7 +371,7 @@ class DecisionTuiApp {
       this.render()
     })
 
-    this.screen.key(['f3'], () => {
+    this.screen.key(['a', 'f3'], () => {
       if (this.isTypingInPrompt()) {
         return
       }
@@ -380,7 +380,7 @@ class DecisionTuiApp {
       this.render()
     })
 
-    this.screen.key(['f2'], () => {
+    this.screen.key(['d', 'f2'], () => {
       if (this.isTypingInPrompt()) {
         return
       }
@@ -389,7 +389,7 @@ class DecisionTuiApp {
       this.render()
     })
 
-    this.screen.key(['f4'], () => {
+    this.screen.key(['m', 'f4'], () => {
       if (this.isTypingInPrompt()) {
         return
       }
@@ -406,7 +406,7 @@ class DecisionTuiApp {
       this.render()
     })
 
-    this.screen.key(['C-r'], () => {
+    this.screen.key(['r', 'C-r'], () => {
       if (this.isTypingInPrompt()) {
         return
       }
