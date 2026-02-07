@@ -41,6 +41,9 @@ const baseInstructions = [
   "Do not include code fences or commentary.",
   "Arrays must contain only strings, not objects.",
   "Keep writing concise and non-repetitive.",
+  "Use plain, direct language with short sentences.",
+  "Avoid unexplained acronyms. If you must use one, define it once.",
+  "Prioritize clear reasoning over buzzwords.",
   "Avoid placeholder text and malformed tokens.",
 ].join(" ")
 
@@ -186,7 +189,8 @@ export const buildDecisionRecordPrompt = (
     formatVoteTally(tallyVotes(convergence)),
     "",
     "Task: Produce the final Decision Record with rationale, tradeoffs, risks, actions, confidence (0-1), minority report, and executiveDecision.",
-    "Limits: summary <= 700 chars, rationale <= 850 chars, minorityReport <= 500 chars.",
+    "Reasoning style: explain the recommendation in a simple chain: evidence -> implications -> decision.",
+    "Limits: summary <= 420 chars, rationale <= 520 chars, minorityReport <= 360 chars.",
     "Limits: tradeoffs <= 6, risks <= 8, actions <= 8.",
     "Executive block limits: why <= 3, topRisks <= 3, topActions <= 5, stopGoCriteria <= 300 chars.",
     "Use yes/no/conditional for binary or policy questions; use go/iterate/stop for execution/rollout decisions.",

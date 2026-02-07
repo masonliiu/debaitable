@@ -21,11 +21,12 @@ const THEME = {
   bg: '#16142a',
   panelBg: '#211a3f',
   panelBorder: '#8a73ff',
-  focusBorder: '#c8bbff',
+  focusBorder: '#ffffff',
   brandFg: '#b8a7ff',
   primaryText: '#efeaff',
   secondaryText: '#cfc5f4',
-  selectedBg: '#372d63',
+  selectedBg: '#ffffff',
+  selectedFg: '#18142a',
 } as const
 
 const trimForLine = (value: string, max = 80): string =>
@@ -233,9 +234,11 @@ const renderResult = (state: TuiState): string => {
   lines.push(`Summary: ${record.summary}`)
   lines.push('')
   lines.push(`Decision Criteria: ${record.executiveDecision.stopGoCriteria}`)
-  lines.push('Why:')
+  lines.push('Reasoning:')
+  let reasoningIndex = 1
   for (const item of record.executiveDecision.why) {
-    lines.push(`- ${item}`)
+    lines.push(`${reasoningIndex}. ${item}`)
+    reasoningIndex += 1
   }
   lines.push('Top Actions:')
   for (const item of record.executiveDecision.topActions.slice(0, 4)) {
@@ -291,6 +294,8 @@ class DecisionTuiApp {
   private footer: blessed.Widgets.BoxElement
   private loadingTimer: NodeJS.Timeout | null = null
   private loadingFrame = 0
+  private historyTopUpPrimed = false
+  private suppressFocusHighlight = false
   private state: TuiState
   private session: TuiSessionContext
 
@@ -376,7 +381,7 @@ class DecisionTuiApp {
         border: { fg: THEME.panelBorder },
         fg: THEME.primaryText,
         bg: THEME.bg,
-        selected: { bg: THEME.selectedBg, fg: THEME.primaryText },
+        selected: { bg: THEME.selectedBg, fg: THEME.selectedFg },
       },
       items: ['No decisions yet'],
     })
@@ -402,7 +407,7 @@ class DecisionTuiApp {
     this.helpModal = blessed.box({
       parent: this.screen,
       width: '58%',
-      height: 9,
+      height: 10,
       top: 'center',
       left: 'center',
       label: ' Help ',
@@ -423,6 +428,10 @@ class DecisionTuiApp {
         ' [Q] Quit  [Ctrl+C] Force quit',
         ' [?] Toggle this help',
       ].join('\n'),
+    })
+    this.helpModal.on('click', () => {
+      this.helpModal.hide()
+      this.render()
     })
 
     this.footer = blessed.box({
@@ -449,19 +458,41 @@ class DecisionTuiApp {
     return this.screen.focused === this.inputBox
   }
 
+  private stopPromptEditing(): void {
+    ;(this.inputBox as unknown as { cancel?: () => void }).cancel?.()
+  }
+
   private focusHistory(): void {
+    this.stopPromptEditing()
+    this.suppressFocusHighlight = false
+    this.historyTopUpPrimed = false
     this.historyBox.focus()
     this.updateFocusStyles()
     this.screen.render()
   }
 
   private focusOutput(): void {
+    this.stopPromptEditing()
+    this.suppressFocusHighlight = false
     this.outputBox.focus()
     this.updateFocusStyles()
     this.screen.render()
   }
 
   private updateFocusStyles(): void {
+    if (this.suppressFocusHighlight) {
+      ;(this.inputBox.style as unknown as { border?: { fg?: string } }).border = {
+        fg: THEME.panelBorder,
+      }
+      ;(this.historyBox.style as unknown as { border?: { fg?: string } }).border = {
+        fg: THEME.panelBorder,
+      }
+      ;(this.outputBox.style as unknown as { border?: { fg?: string } }).border = {
+        fg: THEME.panelBorder,
+      }
+      return
+    }
+
     const focused = this.screen.focused
     ;(this.inputBox.style as unknown as { border?: { fg?: string } }).border = {
       fg: focused === this.inputBox ? THEME.focusBorder : THEME.panelBorder,
@@ -478,7 +509,7 @@ class DecisionTuiApp {
     const mode = this.state.mode.toUpperCase()
     return [
       ` Status: ${this.state.statusMessage} | Mode: ${mode}`,
-      ' [?] Help', ' [Q] Quit',
+      ' [?] Help  [Q] Quit',
     ].join('\n')
   }
 
@@ -488,6 +519,7 @@ class DecisionTuiApp {
   }
 
   private focusInput(): void {
+    this.suppressFocusHighlight = false
     if (this.screen.focused !== this.inputBox) {
       this.inputBox.focus()
     }
@@ -538,8 +570,7 @@ class DecisionTuiApp {
     const dots = '.'.repeat((this.loadingFrame % 4) + 1).padEnd(4, ' ')
     const spinner = ['|', '/', '-', '\\'][this.loadingFrame % 4]
     return [
-      `{bold}${spinner} Running debate{dots}{/bold}`,
-      '',
+      `{bold}${spinner} Running debate {dots}{/bold}`,
     ].join('\n')
   }
 
@@ -637,7 +668,38 @@ class DecisionTuiApp {
   private bindKeys(): void {
     this.screen.key(['?'], () => {
       this.helpModal.hidden = !this.helpModal.hidden
+      if (this.helpModal.hidden) {
+        this.focusInput()
+      }
       this.screen.render()
+    })
+
+    this.screen.key(['escape'], () => {
+      if (!this.helpModal.hidden) {
+        this.helpModal.hide()
+        this.render()
+        return
+      }
+      this.stopPromptEditing()
+      this.suppressFocusHighlight = true
+      this.updateFocusStyles()
+      this.screen.render()
+    })
+
+    this.screen.on('mouse', (data: blessed.Widgets.Events.IMouseEventArg) => {
+      if (this.helpModal.hidden || data.action !== 'mousedown') {
+        return
+      }
+      const lpos = this.helpModal.lpos
+      if (!lpos) {
+        return
+      }
+      const outsideX = data.x < lpos.xi || data.x > lpos.xl
+      const outsideY = data.y < lpos.yi || data.y > lpos.yl
+      if (outsideX || outsideY) {
+        this.helpModal.hide()
+        this.render()
+      }
     })
 
     this.screen.key(['q'], () => {
@@ -662,21 +724,38 @@ class DecisionTuiApp {
 
     this.inputBox.key(['down'], () => {
       this.focusHistory()
+      return false
     })
 
     this.inputBox.key(['right'], () => {
       this.focusOutput()
+      return false
     })
 
     this.historyBox.key(['up'], () => {
       const selectedIndex = this.getHistorySelectionIndex()
-      if (selectedIndex <= 0) {
+      if (selectedIndex === 0) {
+        if (!this.historyTopUpPrimed) {
+          this.historyTopUpPrimed = true
+          this.render()
+          return false
+        }
+        this.historyTopUpPrimed = false
         this.focusInput()
+        return false
       }
+      this.historyTopUpPrimed = false
+      return true
+    })
+
+    this.historyBox.key(['down'], () => {
+      this.historyTopUpPrimed = false
+      return true
     })
 
     this.historyBox.key(['right'], () => {
       this.focusOutput()
+      return false
     })
 
     this.historyBox.key(['enter'], () => {
@@ -686,6 +765,7 @@ class DecisionTuiApp {
 
     this.outputBox.key(['left'], () => {
       this.focusHistory()
+      return false
     })
 
     this.screen.key(['a'], () => {
