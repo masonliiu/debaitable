@@ -15,21 +15,21 @@ const BRAND_ASCII = [
   '|____/|_____|____/_/   \\_\\___| |_| |_| |_/_/   \\_\\____/|_____|_____|',
 ].join('\n')
 
+const THEME = {
+  bg: '#16142a',
+  panelBg: '#211a3f',
+  panelBorder: '#8a73ff',
+  brandFg: '#b8a7ff',
+  primaryText: '#efeaff',
+  secondaryText: '#cfc5f4',
+  selectedBg: '#372d63',
+} as const
+
 const trimForLine = (value: string, max = 80): string =>
   value.length <= max ? value : `${value.slice(0, max - 3)}...`
 
-const renderBrief = (state: TuiState): string => {
-  if (!state.currentInput) {
-    return 'No brief yet. Type a prompt/question and press Enter.'
-  }
-
-  return [
-    `{bold}Title:{/bold} ${state.currentInput.title}`,
-    `{bold}Type:{/bold} ${state.currentInput.decisionType}`,
-    `{bold}Goals:{/bold} ${state.currentInput.goals.join(' | ')}`,
-    `{bold}Constraints:{/bold} ${state.currentInput.constraints.join(' | ')}`,
-  ].join('\n')
-}
+const CONTEXT_TIP =
+  'Include context, goals, constraints, budget, timeline, and must-not-fail risks.'
 
 const renderResult = (state: TuiState): string => {
   if (!state.currentResult?.record) {
@@ -99,7 +99,7 @@ const renderHistoryLabel = (item: SessionHistoryItem): string =>
 class DecisionTuiApp {
   private screen: blessed.Widgets.Screen
   private inputBox: blessed.Widgets.TextboxElement
-  private briefBox: blessed.Widgets.BoxElement
+  private tipBox: blessed.Widgets.BoxElement
   private outputBox: blessed.Widgets.BoxElement
   private historyBox: blessed.Widgets.ListElement
   private footer: blessed.Widgets.BoxElement
@@ -132,7 +132,7 @@ class DecisionTuiApp {
       width: '100%',
       height: 7,
       tags: true,
-      style: { fg: '#9ec1ff', bg: '#1b2330' },
+      style: { fg: THEME.brandFg, bg: THEME.panelBg },
       content: `${BRAND_ASCII}\n  Structured multi-role decisions with concise, auditable outputs.`,
     })
 
@@ -141,50 +141,48 @@ class DecisionTuiApp {
       top: 7,
       left: 0,
       width: '34%',
-      height: 5,
+      height: 6,
       inputOnFocus: true,
       keys: true,
       mouse: true,
       label: ' Prompt ',
       border: 'line',
-      style: { border: { fg: '#5f87ff' }, fg: 'white' },
+      style: { border: { fg: THEME.panelBorder }, fg: THEME.primaryText, bg: THEME.bg },
       value: '',
     })
     this.inputBox.on('submit', () => {
       void this.runCurrentInput()
     })
-    this.inputBox.on('click', () => this.focusInput())
 
-    this.briefBox = blessed.box({
+    this.tipBox = blessed.box({
       parent: this.screen,
-      top: 12,
+      top: 13,
       left: 0,
       width: '34%',
-      height: 8,
-      label: ' Brief ',
+      height: 4,
+      label: ' Context Tip ',
       tags: true,
       border: 'line',
-      style: { border: { fg: '#5f87ff' } },
-      content: renderBrief(this.state),
-      scrollable: true,
-      alwaysScroll: true,
-      mouse: true,
+      style: { border: { fg: THEME.panelBorder }, fg: THEME.primaryText, bg: THEME.bg },
+      content: CONTEXT_TIP,
     })
 
     this.historyBox = blessed.list({
       parent: this.screen,
-      top: 20,
+      top: 17,
       left: 0,
       width: '34%',
-      bottom: 4,
+      bottom: 5,
       label: ' Session History ',
       border: 'line',
       keys: true,
       vi: true,
       mouse: true,
       style: {
-        border: { fg: '#5f87ff' },
-        selected: { bg: '#2f3545' },
+        border: { fg: THEME.panelBorder },
+        fg: THEME.primaryText,
+        bg: THEME.bg,
+        selected: { bg: THEME.selectedBg, fg: THEME.primaryText },
       },
       items: ['No decisions yet'],
     })
@@ -194,10 +192,10 @@ class DecisionTuiApp {
       top: 7,
       left: '34%',
       width: '66%',
-      bottom: 4,
+      bottom: 5,
       label: ' Output ',
       border: 'line',
-      style: { border: { fg: '#5f87ff' } },
+      style: { border: { fg: THEME.panelBorder }, fg: THEME.primaryText, bg: THEME.bg },
       scrollable: true,
       alwaysScroll: true,
       tags: true,
@@ -212,13 +210,17 @@ class DecisionTuiApp {
       bottom: 0,
       left: 0,
       width: '100%',
-      height: 4,
+      height: 5,
       tags: true,
-      style: { fg: '#d7d7d7', bg: '#1b2330' },
+      style: { fg: THEME.secondaryText, bg: THEME.panelBg },
       content: this.renderFooterContent(),
     })
 
     this.bindKeys()
+    this.historyBox.on('select', (_item, index) => {
+      this.state.selectedHistoryIndex = Number(index)
+      this.rerunSelectedWithEdits()
+    })
     this.render()
     this.focusInput()
   }
@@ -235,8 +237,8 @@ class DecisionTuiApp {
     const mode = this.state.mode.toUpperCase()
     return [
       ` Status: ${this.state.statusMessage} | Mode: ${mode}`,
-      ' [Enter] Run  [I] Focus Prompt  [E] Guided Edit  [R] Rerun History',
-      ' [A] Audit  [D] Details  [M] Model  [[ / ]] History Nav  [Tab] Focus Cycle  [Q] Quit',
+      ' [Enter] Run  [Tab] Focus Cycle  [Ctrl+R] Rerun Selected  [Ctrl+C] Quit',
+      ' [F2] Details  [F3] Audit  [F4] Model  [History Enter] Load Prompt',
       '',
     ].join('\n')
   }
@@ -247,8 +249,18 @@ class DecisionTuiApp {
   }
 
   private focusInput(): void {
-    this.inputBox.focus()
+    if (this.screen.focused !== this.inputBox) {
+      this.inputBox.focus()
+    }
     this.screen.render()
+  }
+
+  private getHistorySelectionIndex(): number {
+    const rawSelected = (this.historyBox as unknown as { selected?: number }).selected
+    if (typeof rawSelected === 'number' && rawSelected >= 0) {
+      return Math.min(rawSelected, Math.max(this.state.history.length - 1, 0))
+    }
+    return this.state.selectedHistoryIndex
   }
 
   private log(message: string): void {
@@ -270,7 +282,7 @@ class DecisionTuiApp {
   }
 
   private render(): void {
-    this.briefBox.setContent(renderBrief(this.state))
+    this.tipBox.setContent(CONTEXT_TIP)
     this.outputBox.setContent(renderResult(this.state))
     this.footer.setContent(this.renderFooterContent())
     this.updateHistory()
@@ -326,6 +338,7 @@ class DecisionTuiApp {
   }
 
   private rerunSelectedWithEdits(): void {
+    this.state.selectedHistoryIndex = this.getHistorySelectionIndex()
     const item = this.state.history[this.state.selectedHistoryIndex]
     if (!item) {
       this.setStatus('No history item selected.')
@@ -340,26 +353,10 @@ class DecisionTuiApp {
     this.focusInput()
   }
 
-  private openGuidedEdit(): void {
-    const base = this.state.currentInput
-    const template = `${base ? base.context : this.inputBox.getValue().trim()} goals: <comma separated>; constraints: <comma separated>`
-
-    this.inputBox.setValue(template)
-    this.setStatus('Guided edit inserted. Fill hints and press Enter.')
-    this.render()
-    this.focusInput()
-  }
-
   private bindKeys(): void {
-    this.screen.key(['q', 'C-c'], () => {
+    this.screen.key(['C-c'], () => {
       this.screen.destroy()
       process.exit(0)
-    })
-
-    this.screen.key(['i'], () => {
-      this.setStatus('Prompt focused.')
-      this.focusInput()
-      this.render()
     })
 
     this.screen.key(['tab'], () => {
@@ -374,7 +371,7 @@ class DecisionTuiApp {
       this.render()
     })
 
-    this.screen.key(['a'], () => {
+    this.screen.key(['f3'], () => {
       if (this.isTypingInPrompt()) {
         return
       }
@@ -383,7 +380,7 @@ class DecisionTuiApp {
       this.render()
     })
 
-    this.screen.key(['d'], () => {
+    this.screen.key(['f2'], () => {
       if (this.isTypingInPrompt()) {
         return
       }
@@ -392,7 +389,7 @@ class DecisionTuiApp {
       this.render()
     })
 
-    this.screen.key(['m'], () => {
+    this.screen.key(['f4'], () => {
       if (this.isTypingInPrompt()) {
         return
       }
@@ -409,39 +406,11 @@ class DecisionTuiApp {
       this.render()
     })
 
-    this.screen.key(['e'], () => {
-      if (this.isTypingInPrompt()) {
-        return
-      }
-      this.openGuidedEdit()
-    })
-
-    this.screen.key(['r'], () => {
+    this.screen.key(['C-r'], () => {
       if (this.isTypingInPrompt()) {
         return
       }
       this.rerunSelectedWithEdits()
-    })
-
-    this.screen.key(['['], () => {
-      if (this.isTypingInPrompt() || this.state.history.length === 0) {
-        return
-      }
-      this.state.selectedHistoryIndex = Math.min(
-        this.state.history.length - 1,
-        this.state.selectedHistoryIndex + 1
-      )
-      this.setStatus('History selection moved down.')
-      this.render()
-    })
-
-    this.screen.key([']'], () => {
-      if (this.isTypingInPrompt() || this.state.history.length === 0) {
-        return
-      }
-      this.state.selectedHistoryIndex = Math.max(0, this.state.selectedHistoryIndex - 1)
-      this.setStatus('History selection moved up.')
-      this.render()
     })
   }
 
