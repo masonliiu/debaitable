@@ -377,8 +377,8 @@ class DecisionTuiApp {
       bottom: 5,
       label: ' Session History ',
       border: 'line',
-      keys: true,
-      vi: true,
+      keys: false,
+      vi: false,
       mouse: true,
       style: {
         border: { fg: THEME.panelBorder },
@@ -754,9 +754,12 @@ class DecisionTuiApp {
       return false
     })
 
-    this.historyBox.key(['up'], () => {
+    this.screen.key(['up'], () => {
+      if (this.screen.focused !== this.historyBox) {
+        return
+      }
       if (this.state.history.length === 0) {
-        return false
+        return
       }
       const selectedIndex = this.getHistorySelectionIndex()
       if (selectedIndex > 0) {
@@ -764,24 +767,26 @@ class DecisionTuiApp {
         this.state.selectedHistoryIndex = selectedIndex - 1
         this.previewHistorySelection()
         this.render()
-        return false
+        return
       }
 
       if (!this.historyTopUpPrimed) {
         this.historyTopUpPrimed = true
         this.render()
-        return false
+        return
       }
 
       this.historyTopUpPrimed = false
       this.focusInput()
-      return false
     })
 
-    this.historyBox.key(['down'], () => {
+    this.screen.key(['down'], () => {
+      if (this.screen.focused !== this.historyBox) {
+        return
+      }
       this.historyTopUpPrimed = false
       if (this.state.history.length === 0) {
-        return false
+        return
       }
       const selectedIndex = this.getHistorySelectionIndex()
       const nextIndex = Math.min(this.state.history.length - 1, selectedIndex + 1)
@@ -790,17 +795,20 @@ class DecisionTuiApp {
         this.previewHistorySelection()
         this.render()
       }
-      return false
     })
 
-    this.historyBox.key(['right'], () => {
+    this.screen.key(['right'], () => {
+      if (this.screen.focused !== this.historyBox) {
+        return
+      }
       this.focusOutput()
-      return false
     })
 
-    this.historyBox.key(['enter'], () => {
+    this.screen.key(['enter'], () => {
+      if (this.screen.focused !== this.historyBox) {
+        return
+      }
       this.rerunSelectedWithEdits()
-      return false
     })
 
     this.outputBox.key(['left'], () => {
