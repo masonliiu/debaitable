@@ -1,7 +1,6 @@
 import blessed from 'blessed'
 import { chmod, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import readline from 'node:readline/promises'
 import { createOpenAiProvider, HeuristicDebateProvider, LlmProvider } from '../../ai'
 import { roleDefinitions } from '../../core'
 import { MemoryDecisionQueue } from '../../jobs'
@@ -22,6 +21,7 @@ const THEME = {
   bg: '#16142a',
   panelBg: '#211a3f',
   panelBorder: '#8a73ff',
+  focusBorder: '#c8bbff',
   brandFg: '#b8a7ff',
   primaryText: '#efeaff',
   secondaryText: '#cfc5f4',
@@ -118,27 +118,78 @@ const ensureOpenAiApiKey = async (): Promise<void> => {
     return
   }
 
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  })
+  const apiKey = (
+    await promptHiddenInput(
+      'OPENAI_API_KEY not found. Paste key to enable OpenAI mode (or press Enter to skip): '
+    )
+  ).trim()
 
-  try {
-    const apiKey = (
-      await rl.question('OPENAI_API_KEY not found. Paste key to enable OpenAI mode (or press Enter to skip): ')
-    ).trim()
+  if (!apiKey) {
+    return
+  }
 
-    if (!apiKey) {
-      return
+  process.env.OPENAI_API_KEY = apiKey
+  process.env.OPENAI_MODEL = process.env.OPENAI_MODEL?.trim() || 'gpt-5'
+  await persistOpenAiEnv(apiKey)
+  console.log('Saved OPENAI_API_KEY to .env')
+}
+
+const promptHiddenInput = async (label: string): Promise<string> => {
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    return ''
+  }
+
+  process.stdout.write(label)
+  const stdin = process.stdin
+  const wasRaw = stdin.isRaw
+  stdin.setEncoding('utf8')
+  if (typeof stdin.setRawMode === 'function') {
+    stdin.setRawMode(true)
+  }
+  stdin.resume()
+
+  return new Promise((resolve, reject) => {
+    let value = ''
+
+    const cleanup = (): void => {
+      stdin.off('data', onData)
+      if (typeof stdin.setRawMode === 'function') {
+        stdin.setRawMode(Boolean(wasRaw))
+      }
+      stdin.pause()
+      process.stdout.write('\n')
     }
 
-    process.env.OPENAI_API_KEY = apiKey
-    process.env.OPENAI_MODEL = process.env.OPENAI_MODEL?.trim() || 'gpt-5'
-    await persistOpenAiEnv(apiKey)
-    console.log('Saved OPENAI_API_KEY to .env')
-  } finally {
-    rl.close()
-  }
+    const onData = (chunk: string): void => {
+      if (chunk === '\u0003') {
+        cleanup()
+        reject(new Error('Input cancelled'))
+        return
+      }
+
+      if (chunk === '\r' || chunk === '\n') {
+        cleanup()
+        resolve(value)
+        return
+      }
+
+      if (chunk === '\u007f' || chunk === '\b') {
+        if (value.length > 0) {
+          value = value.slice(0, -1)
+        }
+        return
+      }
+
+      if (chunk.startsWith('\u001b')) {
+        return
+      }
+
+      value += chunk
+      process.stdout.write('*')
+    }
+
+    stdin.on('data', onData)
+  })
 }
 
 const renderResult = (state: TuiState): string => {
@@ -185,9 +236,6 @@ const renderResult = (state: TuiState): string => {
       lines.push(`- ${item}`)
     }
     lines.push(`Minority: ${record.minorityReport}`)
-  } else {
-    lines.push('')
-    lines.push('{gray-fg}[d] Show detailed record{/gray-fg}')
   }
 
   if (state.showAudit) {
@@ -212,6 +260,7 @@ class DecisionTuiApp {
   private tipBox: blessed.Widgets.BoxElement
   private outputBox: blessed.Widgets.BoxElement
   private historyBox: blessed.Widgets.ListElement
+  private helpModal: blessed.Widgets.BoxElement
   private footer: blessed.Widgets.BoxElement
   private state: TuiState
   private session: TuiSessionContext
@@ -315,12 +364,38 @@ class DecisionTuiApp {
       content: renderResult(this.state),
     })
 
+    this.helpModal = blessed.box({
+      parent: this.screen,
+      width: '58%',
+      height: 9,
+      top: 'center',
+      left: 'center',
+      label: ' Help ',
+      border: 'line',
+      tags: true,
+      hidden: true,
+      style: {
+        border: { fg: THEME.focusBorder },
+        fg: THEME.primaryText,
+        bg: THEME.panelBg,
+      },
+      content: [
+        ' Core controls',
+        ' [Enter] Run decision',
+        ' [Arrows] Move between prompt, history, and output',
+        ' [A] Toggle audit timeline',
+        ' [M] Toggle model (if OPENAI_API_KEY exists)',
+        ' [Q] Quit  [Ctrl+C] Force quit',
+        ' [?] Toggle this help',
+      ].join('\n'),
+    })
+
     this.footer = blessed.box({
       parent: this.screen,
       bottom: 0,
       left: 0,
       width: '100%',
-      height: 5,
+      height: 4,
       tags: true,
       style: { fg: THEME.secondaryText, bg: THEME.panelBg },
       content: this.renderFooterContent(),
@@ -345,19 +420,34 @@ class DecisionTuiApp {
 
   private focusHistory(): void {
     this.historyBox.focus()
+    this.updateFocusStyles()
     this.screen.render()
   }
 
   private focusOutput(): void {
     this.outputBox.focus()
+    this.updateFocusStyles()
     this.screen.render()
+  }
+
+  private updateFocusStyles(): void {
+    const focused = this.screen.focused
+    ;(this.inputBox.style as unknown as { border?: { fg?: string } }).border = {
+      fg: focused === this.inputBox ? THEME.focusBorder : THEME.panelBorder,
+    }
+    ;(this.historyBox.style as unknown as { border?: { fg?: string } }).border = {
+      fg: focused === this.historyBox ? THEME.focusBorder : THEME.panelBorder,
+    }
+    ;(this.outputBox.style as unknown as { border?: { fg?: string } }).border = {
+      fg: focused === this.outputBox ? THEME.focusBorder : THEME.panelBorder,
+    }
   }
 
   private renderFooterContent(): string {
     const mode = this.state.mode.toUpperCase()
     return [
       ` Status: ${this.state.statusMessage} | Mode: ${mode}`,
-      ' [Enter] Run  [Arrows] Move panes  [A] Audit  [M] Model',
+      ' [Enter] Run  [Arrows] Move panes  [A] Audit  [M] Model  [?] Help',
       ' [Q] Quit  [Ctrl+C] Force Quit',
       '',
     ].join('\n')
@@ -372,6 +462,7 @@ class DecisionTuiApp {
     if (this.screen.focused !== this.inputBox) {
       this.inputBox.focus()
     }
+    this.updateFocusStyles()
     this.screen.render()
   }
 
@@ -406,6 +497,7 @@ class DecisionTuiApp {
     this.outputBox.setContent(renderResult(this.state))
     this.footer.setContent(this.renderFooterContent())
     this.updateHistory()
+    this.updateFocusStyles()
     this.screen.render()
   }
 
@@ -474,6 +566,11 @@ class DecisionTuiApp {
   }
 
   private bindKeys(): void {
+    this.screen.key(['?'], () => {
+      this.helpModal.hidden = !this.helpModal.hidden
+      this.screen.render()
+    })
+
     this.screen.key(['q'], () => {
       if (this.isTypingInPrompt()) {
         return
