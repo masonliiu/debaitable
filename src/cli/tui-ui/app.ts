@@ -351,9 +351,6 @@ class DecisionTuiApp {
       void this.runCurrentInput()
       return false
     })
-    this.inputBox.on('click', () => {
-      this.focusInput()
-    })
 
     this.tipBox = blessed.box({
       parent: this.screen,
