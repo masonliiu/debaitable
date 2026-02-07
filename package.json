@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx src/dev.ts",
+    "cli": "tsx src/cli/main.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
