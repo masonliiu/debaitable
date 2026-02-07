@@ -1,7 +1,7 @@
 import { DecisionInput, DecisionType } from '../../core'
 
-const defaultGoal = 'Choose the strongest path with clear tradeoffs and execution steps.'
-const defaultConstraint = 'Keep scope practical for near-term execution.'
+const defaultGoal = 'Produce a clear, defensible answer with transparent tradeoffs.'
+const defaultConstraint = 'Use balanced reasoning and explicit assumptions.'
 
 const parseList = (raw: string): string[] =>
   raw
@@ -48,7 +48,16 @@ export const inferDecisionType = (value: string): DecisionType => {
   ) {
     return 'growth'
   }
-  return 'product'
+  if (
+    words.has('product') ||
+    words.has('roadmap') ||
+    words.has('feature') ||
+    words.has('launch') ||
+    words.has('ux')
+  ) {
+    return 'product'
+  }
+  return 'general'
 }
 
 const buildTitleFromSituation = (value: string): string => {

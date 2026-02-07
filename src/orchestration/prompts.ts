@@ -74,7 +74,7 @@ const decisionRecordSchemaHint = [
   '{"summary":"...","rationale":"...","tradeoffs":["..."],',
   '"risks":["..."],"actions":["..."],"confidence":0.0,',
   '"minorityReport":"...",',
-  '"executiveDecision":{"decision":"go|iterate|stop","why":["..."],',
+  '"executiveDecision":{"decision":"go|iterate|stop|yes|no|conditional","why":["..."],',
   '"topRisks":["..."],"topActions":["..."],"stopGoCriteria":"..."}}',
 ].join("")
 
@@ -189,6 +189,7 @@ export const buildDecisionRecordPrompt = (
     "Limits: summary <= 700 chars, rationale <= 850 chars, minorityReport <= 500 chars.",
     "Limits: tradeoffs <= 6, risks <= 8, actions <= 8.",
     "Executive block limits: why <= 3, topRisks <= 3, topActions <= 5, stopGoCriteria <= 300 chars.",
+    "Use yes/no/conditional for binary or policy questions; use go/iterate/stop for execution/rollout decisions.",
     "No duplicate list items. Prefer concise bullets over long paragraphs.",
     "Output JSON schema:",
     decisionRecordSchemaHint,

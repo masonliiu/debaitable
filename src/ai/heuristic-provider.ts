@@ -50,6 +50,9 @@ const pickVote = (roleKey: RoleKey): 'support' | 'conditional' | 'oppose' => {
   return 'support'
 }
 
+const isBinaryQuestion = (context: string): boolean =>
+  /^(should|is|are|can|could|do|does|did|will|would)\b/i.test(context.trim())
+
 const toResponse = <TOutput>(output: TOutput): LlmResponse<TOutput> => ({
   output,
   raw: JSON.stringify(output),
@@ -71,21 +74,21 @@ export class HeuristicDebateProvider implements LlmProvider {
     if (round === 'proposal') {
       const output = {
         roleKey,
-        summary: `${input.title}: ${roleKey} perspective for ${input.decisionType}.`,
-        recommendation: `Prioritize a scoped rollout focused on ${input.goals[0] ?? 'core goal'}.`,
-        rationale: `This balances objective achievement with the key constraint: ${input.constraints[0] ?? 'limited capacity'}.`,
+        summary: `${input.title}: ${roleKey} perspective for ${input.decisionType} analysis.`,
+        recommendation: `Prioritize an evidence-backed approach focused on ${input.goals[0] ?? 'the core goal'}.`,
+        rationale: `This balances objective achievement with the key constraint: ${input.constraints[0] ?? 'practical limits'}.`,
         risks: [
-          `Execution drift may weaken ${input.goals[0] ?? 'goal delivery'}.`,
-          'Scope creep can break timeline and quality.',
+          `Key assumptions may be wrong and weaken ${input.goals[0] ?? 'the target outcome'}.`,
+          'Overconfidence can reduce fairness and decision quality.',
         ],
         assumptions: [
-          'Baseline metrics are available and trustworthy.',
-          'Cross-functional owners can execute within current constraints.',
+          'Available evidence is relevant and reasonably reliable.',
+          'Constraints and stakeholder impacts are represented fairly.',
         ],
         actions: [
-          'Define success metrics and guardrails before implementation.',
-          'Run a small pilot and compare against baseline.',
-          'Review pilot outcomes before expanding scope.',
+          'Define explicit criteria for a strong vs weak recommendation.',
+          'Test key assumptions against available evidence.',
+          'Document risks and mitigation before finalizing.',
         ],
       }
       return toResponse(output as TOutput)
@@ -131,45 +134,45 @@ export class HeuristicDebateProvider implements LlmProvider {
     }
 
     const output = {
-      summary: `Proceed with a scoped implementation for ${input.title}.`,
+      summary: `Conclude a defensible recommendation for ${input.title}.`,
       rationale:
-        'Role debate converges on phased execution with measurable guardrails and explicit ownership.',
+        'Role debate converges on evidence quality, risk handling, and practical feasibility.',
       tradeoffs: [
-        'Faster progress from constrained rollout vs slower certainty from deeper upfront analysis.',
-        'Tighter scope lowers risk but may delay broader upside.',
+        'Stronger confidence from stricter evidence thresholds vs faster decision speed with less evidence.',
+        'Broader inclusion of edge cases improves safety but increases analysis complexity.',
       ],
       risks: [
-        'Incomplete ownership can delay delivery.',
-        'Weak measurement can hide underperformance.',
+        'Biased assumptions can distort conclusions.',
+        'Insufficient evidence quality can produce unreliable recommendations.',
       ],
       actions: [
-        'Approve pilot scope, metrics, and owners.',
-        'Run pilot against baseline and review outcomes.',
-        'Expand only when thresholds are met.',
+        'Set explicit decision criteria and acceptable uncertainty bounds.',
+        'Validate top assumptions with disconfirming evidence checks.',
+        'Finalize recommendation with documented tradeoffs and risks.',
       ],
       confidence: 0.68,
       minorityReport:
-        'Conditional voters requested explicit rollback thresholds and stronger dependency ownership.',
+        'Conditional voters requested clearer evidence thresholds and stronger handling of edge cases.',
       executiveDecision: {
-        decision: 'iterate',
+        decision: isBinaryQuestion(input.context) ? 'conditional' : 'iterate',
         why: [
-          'The approach aligns with the primary activation goal and timeline constraints.',
-          'Convergence includes conditional support that can be addressed with guardrails.',
+          'The recommendation aligns with stated goals and constraints.',
+          'Convergence includes conditional support that can be resolved with clearer criteria.',
         ],
         topRisks: [
-          'Unclear stop and continue thresholds can create rollout risk.',
-          'Ownership gaps can delay execution and quality control.',
-          'Weak measurement can produce noisy decision signals.',
+          'Unclear evidence standards can skew the final answer.',
+          'Missing edge-case analysis can create fairness or safety blind spots.',
+          'Weak uncertainty handling can overstate confidence.',
         ],
         topActions: [
-          'Lock success metrics, guardrails, and rollout thresholds before launch.',
-          'Run a small canary and ramp only if guardrails hold.',
-          'Assign accountable owners for dependency and risk tracking.',
-          'Validate event quality before reading experiment outcomes.',
-          'Extend experiment duration if the test is underpowered.',
+          'Define clear recommendation criteria before deciding.',
+          'Pressure-test claims against counterarguments and edge cases.',
+          'Record uncertainty bounds and confidence rationale.',
+          'Update recommendation if critical evidence changes.',
+          'Document unresolved questions for follow-up.',
         ],
         stopGoCriteria:
-          'Go only if lift and guardrails meet thresholds; otherwise iterate under flag or rollback.',
+          'Choose the positive path only if evidence quality and risk thresholds are met; otherwise choose the safer alternative or refine.',
       },
     }
     return toResponse(output as TOutput)

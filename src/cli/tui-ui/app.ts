@@ -232,7 +232,7 @@ const renderResult = (state: TuiState): string => {
   lines.push(`Confidence: ${record.confidence}`)
   lines.push(`Summary: ${record.summary}`)
   lines.push('')
-  lines.push(`Stop/Go: ${record.executiveDecision.stopGoCriteria}`)
+  lines.push(`Decision Criteria: ${record.executiveDecision.stopGoCriteria}`)
   lines.push('Why:')
   for (const item of record.executiveDecision.why) {
     lines.push(`- ${item}`)
@@ -437,10 +437,6 @@ class DecisionTuiApp {
     })
 
     this.bindKeys()
-    this.historyBox.on('select', (_item, index) => {
-      this.state.selectedHistoryIndex = Number(index)
-      this.rerunSelectedWithEdits()
-    })
     this.render()
     this.focusInput()
   }
@@ -482,9 +478,7 @@ class DecisionTuiApp {
     const mode = this.state.mode.toUpperCase()
     return [
       ` Status: ${this.state.statusMessage} | Mode: ${mode}`,
-      ' [Enter] Run  [Arrows] Move panes  [A] Audit  [M] Model  [?] Help',
-      ' [Q] Quit  [Ctrl+C] Force Quit',
-      '',
+      ' [?] Help', ' [Q] Quit',
     ].join('\n')
   }
 
@@ -544,11 +538,8 @@ class DecisionTuiApp {
     const dots = '.'.repeat((this.loadingFrame % 4) + 1).padEnd(4, ' ')
     const spinner = ['|', '/', '-', '\\'][this.loadingFrame % 4]
     return [
-      '{bold}Generating decision record{/bold}',
+      `{bold}${spinner} Running debate{dots}{/bold}`,
       '',
-      `{gray-fg}${spinner} Generating${dots}{/gray-fg}`,
-      '',
-      '{gray-fg}Running multi-role debate and consolidating the decision...{/gray-fg}',
     ].join('\n')
   }
 
@@ -686,6 +677,11 @@ class DecisionTuiApp {
 
     this.historyBox.key(['right'], () => {
       this.focusOutput()
+    })
+
+    this.historyBox.key(['enter'], () => {
+      this.rerunSelectedWithEdits()
+      return false
     })
 
     this.outputBox.key(['left'], () => {

@@ -1,4 +1,4 @@
-export type DecisionType = "product" | "engineering" | "hiring" | "growth"
+export type DecisionType = "product" | "engineering" | "hiring" | "growth" | "general"
 
 export type DecisionStatus = "queued" | "running" | "succeeded" | "failed"
 
@@ -40,7 +40,7 @@ export type DecisionRecord = {
   confidence: number
   minorityReport: string
   executiveDecision: {
-    decision: "go" | "iterate" | "stop"
+    decision: "go" | "iterate" | "stop" | "yes" | "no" | "conditional"
     why: string[]
     topRisks: string[]
     topActions: string[]

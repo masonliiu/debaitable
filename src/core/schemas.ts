@@ -5,6 +5,7 @@ export const DecisionTypeSchema = z.enum([
   "engineering",
   "hiring",
   "growth",
+  "general",
 ])
 
 export const DecisionStatusSchema = z.enum([
@@ -45,7 +46,7 @@ export const DebateRoundSchema = z.object({
 })
 
 export const ExecutiveDecisionSchema = z.object({
-  decision: z.enum(["go", "iterate", "stop"]),
+  decision: z.enum(["go", "iterate", "stop", "yes", "no", "conditional"]),
   why: z.array(z.string().min(1)),
   topRisks: z.array(z.string().min(1)),
   topActions: z.array(z.string().min(1)),

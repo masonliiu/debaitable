@@ -63,6 +63,11 @@ const scoreConfidence = (convergence: ConvergenceOutput[]): number => {
   return Math.max(0, Math.min(1, Number(score.toFixed(2))))
 }
 
+const isBinaryQuestion = (context: string): boolean => {
+  const normalized = context.trim().toLowerCase()
+  return /^(should|is|are|can|could|do|does|did|will|would)\b/.test(normalized)
+}
+
 export const synthesizeDecisionRecord = (
   input: DecisionInput,
   proposals: ProposalOutput[],
@@ -95,6 +100,20 @@ export const synthesizeDecisionRecord = (
 
   const actions = take(dedupe(proposals.flatMap((item) => item.actions)), 6)
 
+  const binaryQuestion = isBinaryQuestion(input.context)
+  const executiveDecision =
+    tally.support >= Math.max(tally.conditional, tally.oppose)
+      ? binaryQuestion
+        ? "yes"
+        : "go"
+      : tally.oppose > tally.support
+        ? binaryQuestion
+          ? "no"
+          : "stop"
+        : binaryQuestion
+          ? "conditional"
+          : "iterate"
+
   return {
     summary,
     rationale: buildRationale(convergence, proposals),
@@ -113,12 +132,7 @@ export const synthesizeDecisionRecord = (
     confidence: scoreConfidence(convergence),
     minorityReport: buildMinorityReport(convergence, critiques),
     executiveDecision: {
-      decision:
-        tally.support >= Math.max(tally.conditional, tally.oppose)
-          ? "go"
-          : tally.oppose > tally.support
-            ? "stop"
-            : "iterate",
+      decision: executiveDecision,
       why: take(
         dedupe([
           ...convergence.flatMap((item) => item.reasons),
@@ -135,7 +149,7 @@ export const synthesizeDecisionRecord = (
       ),
       topActions: take(dedupe(proposals.flatMap((item) => item.actions)), 5),
       stopGoCriteria:
-        "Go if activation lift and guardrails pass pre-registered thresholds; otherwise iterate under flag or stop and rollback.",
+        "Choose the positive path only if evidence quality, risk controls, and fairness thresholds are met; otherwise choose the safer alternative or refine the plan.",
     },
   }
 }
