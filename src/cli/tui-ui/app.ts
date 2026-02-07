@@ -1,4 +1,7 @@
 import blessed from 'blessed'
+import { chmod, readFile, writeFile } from 'node:fs/promises'
+import path from 'node:path'
+import readline from 'node:readline/promises'
 import { createOpenAiProvider, HeuristicDebateProvider, LlmProvider } from '../../ai'
 import { roleDefinitions } from '../../core'
 import { MemoryDecisionQueue } from '../../jobs'
@@ -30,6 +33,113 @@ const trimForLine = (value: string, max = 80): string =>
 
 const CONTEXT_TIP =
   'Include context, goals, constraints, budget, timeline, and must-not-fail risks.'
+
+const ENV_FILE_PATH = path.resolve(process.cwd(), '.env')
+
+const upsertEnvLine = (source: string, key: string, value: string): string => {
+  const safeValue = value.replace(/\r?\n/g, '').trim()
+  const lines = source.length > 0 ? source.split(/\r?\n/) : []
+  const prefix = `${key}=`
+  let found = false
+  const updated = lines.map((line) => {
+    if (line.startsWith(prefix)) {
+      found = true
+      return `${prefix}${safeValue}`
+    }
+    return line
+  })
+
+  if (!found) {
+    updated.push(`${prefix}${safeValue}`)
+  }
+
+  return `${updated.filter((line) => line.length > 0).join('\n')}\n`
+}
+
+const hydrateEnvFromFile = async (): Promise<void> => {
+  let source = ''
+  try {
+    source = await readFile(ENV_FILE_PATH, 'utf8')
+  } catch (error) {
+    if (!(error instanceof Error) || !('code' in error) || error.code !== 'ENOENT') {
+      throw error
+    }
+    return
+  }
+
+  for (const rawLine of source.split(/\r?\n/)) {
+    const line = rawLine.trim()
+    if (!line || line.startsWith('#')) {
+      continue
+    }
+
+    const equalIndex = line.indexOf('=')
+    if (equalIndex <= 0) {
+      continue
+    }
+
+    const key = line.slice(0, equalIndex).trim()
+    let value = line.slice(equalIndex + 1).trim()
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1)
+    }
+
+    if (!process.env[key]) {
+      process.env[key] = value
+    }
+  }
+}
+
+const persistOpenAiEnv = async (apiKey: string): Promise<void> => {
+  let current = ''
+  try {
+    current = await readFile(ENV_FILE_PATH, 'utf8')
+  } catch (error) {
+    if (!(error instanceof Error) || !('code' in error) || error.code !== 'ENOENT') {
+      throw error
+    }
+  }
+
+  let next = upsertEnvLine(current, 'OPENAI_API_KEY', apiKey)
+  next = upsertEnvLine(next, 'OPENAI_MODEL', process.env.OPENAI_MODEL?.trim() || 'gpt-5')
+  await writeFile(ENV_FILE_PATH, next, 'utf8')
+  await chmod(ENV_FILE_PATH, 0o600)
+}
+
+const ensureOpenAiApiKey = async (): Promise<void> => {
+  if (process.env.OPENAI_API_KEY?.trim()) {
+    return
+  }
+
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    return
+  }
+
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  })
+
+  try {
+    const apiKey = (
+      await rl.question('OPENAI_API_KEY not found. Paste key to enable OpenAI mode (or press Enter to skip): ')
+    ).trim()
+
+    if (!apiKey) {
+      return
+    }
+
+    process.env.OPENAI_API_KEY = apiKey
+    process.env.OPENAI_MODEL = process.env.OPENAI_MODEL?.trim() || 'gpt-5'
+    await persistOpenAiEnv(apiKey)
+    console.log('Saved OPENAI_API_KEY to .env')
+  } finally {
+    rl.close()
+  }
+}
 
 const renderResult = (state: TuiState): string => {
   if (!state.currentResult?.record) {
@@ -133,7 +243,7 @@ class DecisionTuiApp {
       height: 7,
       tags: true,
       style: { fg: THEME.brandFg, bg: THEME.panelBg },
-      content: `${BRAND_ASCII}\nMake specialized, trained LLMs debate to achieve a refined consensus.`,
+      content: `${BRAND_ASCII}\nHave specialized, trained LLMs debate to achieve a refined consensus.`,
     })
 
     this.inputBox = blessed.textbox({
@@ -433,6 +543,8 @@ class DecisionTuiApp {
 }
 
 export const runTui = async (): Promise<void> => {
+  await hydrateEnvFromFile()
+  await ensureOpenAiApiKey()
   const app = new DecisionTuiApp()
   app.run()
 }
