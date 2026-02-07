@@ -10,9 +10,12 @@ structured debate rounds and outputs a Decision Record plus an audit trail of al
   - Round 3: convergence vote
 - Produces a structured `DecisionRecord`:
   - summary, rationale, tradeoffs, risks, actions, confidence, minority report
+  - executive decision block (`decision`, `why`, top risks/actions, stop/go criteria)
 - Stores all rounds and run states in a persistence layer
 - Supports OpenAI-backed generation and deterministic local heuristic mode
 - Includes an interactive TUI CLI that saves JSON artifacts under `artifacts/`
+ - Uses one-message decision intake by default, with optional guided edit only when needed
+ - Applies normalization + quality gates to keep output concise, non-duplicative, and usable
 
 ## Current Architecture
 1. API service validates and sanitizes decision input.
