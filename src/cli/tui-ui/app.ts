@@ -294,7 +294,6 @@ class DecisionTuiApp {
   private footer: blessed.Widgets.BoxElement
   private loadingTimer: NodeJS.Timeout | null = null
   private loadingFrame = 0
-  private historyTopUpPrimed = false
   private suppressFocusHighlight = false
   private state: TuiState
   private session: TuiSessionContext
@@ -393,7 +392,6 @@ class DecisionTuiApp {
     })
     this.historyBox.on('select', (_item, index) => {
       this.state.selectedHistoryIndex = Number(index)
-      this.historyTopUpPrimed = false
       this.previewHistorySelection()
       this.render()
     })
@@ -480,7 +478,6 @@ class DecisionTuiApp {
   private focusHistory(): void {
     this.stopPromptEditing()
     this.suppressFocusHighlight = false
-    this.historyTopUpPrimed = false
     this.historyBox.focus()
     this.updateFocusStyles()
     this.screen.render()
@@ -763,20 +760,12 @@ class DecisionTuiApp {
       }
       const selectedIndex = this.getHistorySelectionIndex()
       if (selectedIndex > 0) {
-        this.historyTopUpPrimed = false
         this.state.selectedHistoryIndex = selectedIndex - 1
         this.previewHistorySelection()
         this.render()
         return
       }
 
-      if (!this.historyTopUpPrimed) {
-        this.historyTopUpPrimed = true
-        this.render()
-        return
-      }
-
-      this.historyTopUpPrimed = false
       this.focusInput()
     })
 
@@ -784,7 +773,6 @@ class DecisionTuiApp {
       if (this.screen.focused !== this.historyBox) {
         return
       }
-      this.historyTopUpPrimed = false
       if (this.state.history.length === 0) {
         return
       }
