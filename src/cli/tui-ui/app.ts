@@ -343,6 +343,10 @@ class DecisionTuiApp {
       scrollbar: { ch: ' ' },
       wrap: true,
     })
+    this.inputBox.key(['enter'], () => {
+      void this.runCurrentInput()
+      return false
+    })
 
     this.tipBox = blessed.box({
       parent: this.screen,
