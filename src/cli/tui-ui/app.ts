@@ -7,12 +7,20 @@ import { buildInputFromSituation } from './input-parser'
 import { runDecisionPipeline, TuiSessionContext } from './runner'
 import { createInitialState, SessionHistoryItem, TuiState } from './state'
 
+const BRAND_ASCII = [
+  ' ____  _____ ____    _    ___ _____ _   _    _    ____  _     _____ ',
+  '|  _ \\| ____| __ )  / \\  |_ _|_   _| | | |  / \\  | __ )| |   | ____|',
+  "| | | |  _| |  _ \\ / _ \\  | |  | | | |_| | / _ \\ |  _ \\| |   |  _|  ",
+  '| |_| | |___| |_) / ___ \\ | |  | | |  _  |/ ___ \\| |_) | |___| |___ ',
+  '|____/|_____|____/_/   \\_\\___| |_| |_| |_/_/   \\_\\____/|_____|_____|',
+].join('\n')
+
 const trimForLine = (value: string, max = 80): string =>
   value.length <= max ? value : `${value.slice(0, max - 3)}...`
 
-const renderDraft = (state: TuiState): string => {
+const renderBrief = (state: TuiState): string => {
   if (!state.currentInput) {
-    return 'No brief yet. Type a prompt and press Enter.'
+    return 'No brief yet. Type a prompt/question and press Enter.'
   }
 
   return [
@@ -41,8 +49,8 @@ const renderResult = (state: TuiState): string => {
   for (const item of record.executiveDecision.why) {
     lines.push(`- ${item}`)
   }
-  lines.push('Top actions:')
-  for (const item of record.executiveDecision.topActions.slice(0, 3)) {
+  lines.push('Top Actions:')
+  for (const item of record.executiveDecision.topActions.slice(0, 4)) {
     lines.push(`- ${item}`)
   }
 
@@ -50,7 +58,7 @@ const renderResult = (state: TuiState): string => {
     lines.push('')
     lines.push('{bold}Details{/bold}')
     lines.push(`Rationale: ${record.rationale}`)
-    lines.push('Top risks:')
+    lines.push('Top Risks:')
     for (const item of record.executiveDecision.topRisks) {
       lines.push(`- ${item}`)
     }
@@ -69,7 +77,7 @@ const renderResult = (state: TuiState): string => {
     lines.push(`Minority: ${record.minorityReport}`)
   } else {
     lines.push('')
-    lines.push('{gray-fg}Press d to toggle detailed record.{/gray-fg}')
+    lines.push('{gray-fg}[d] Show detailed record{/gray-fg}')
   }
 
   if (state.showAudit) {
@@ -79,14 +87,14 @@ const renderResult = (state: TuiState): string => {
       lines.push(`- Round ${round.roundIndex} | ${round.roleKey}`)
     }
   } else {
-    lines.push('{gray-fg}Press a to toggle audit timeline.{/gray-fg}')
+    lines.push('{gray-fg}[a] Show audit timeline{/gray-fg}')
   }
 
   return lines.join('\n')
 }
 
 const renderHistoryLabel = (item: SessionHistoryItem): string =>
-  `${item.decision.toUpperCase()} | ${trimForLine(item.title, 38)}`
+  `${item.decision.toUpperCase()} | ${trimForLine(item.title, 40)}`
 
 class DecisionTuiApp {
   private screen: blessed.Widgets.Screen
@@ -97,7 +105,6 @@ class DecisionTuiApp {
   private footer: blessed.Widgets.BoxElement
   private state: TuiState
   private session: TuiSessionContext
-  private isReadingInput = false
 
   constructor() {
     const defaultMode: 'openai' | 'heuristic' = process.env.OPENAI_API_KEY ? 'openai' : 'heuristic'
@@ -113,7 +120,7 @@ class DecisionTuiApp {
 
     this.screen = blessed.screen({
       smartCSR: true,
-      title: 'Quoraim TUI',
+      title: 'DebAItable TUI',
       dockBorders: true,
       fullUnicode: true,
     })
@@ -123,19 +130,19 @@ class DecisionTuiApp {
       top: 0,
       left: 0,
       width: '100%',
-      height: 2,
+      height: 7,
       tags: true,
-      style: { fg: 'white', bg: '#1f2736' },
-      content: ' {bold}Quoraim{/bold}  Decision TUI  |  concise-first output ',
+      style: { fg: '#9ec1ff', bg: '#1b2330' },
+      content: `${BRAND_ASCII}\n  Structured multi-role decisions with concise, auditable outputs.`,
     })
 
     this.inputBox = blessed.textbox({
       parent: this.screen,
-      top: 2,
+      top: 7,
       left: 0,
-      width: '36%',
+      width: '34%',
       height: 5,
-      inputOnFocus: false,
+      inputOnFocus: true,
       keys: true,
       mouse: true,
       label: ' Prompt ',
@@ -150,27 +157,26 @@ class DecisionTuiApp {
 
     this.briefBox = blessed.box({
       parent: this.screen,
-      top: 7,
+      top: 12,
       left: 0,
-      width: '36%',
-      height: 7,
+      width: '34%',
+      height: 8,
       label: ' Brief ',
       tags: true,
       border: 'line',
       style: { border: { fg: '#5f87ff' } },
-      content: renderDraft(this.state),
+      content: renderBrief(this.state),
       scrollable: true,
       alwaysScroll: true,
       mouse: true,
     })
-    this.briefBox.on('click', () => this.focusInput())
 
     this.historyBox = blessed.list({
       parent: this.screen,
-      top: 14,
+      top: 20,
       left: 0,
-      width: '36%',
-      bottom: 3,
+      width: '34%',
+      bottom: 4,
       label: ' Session History ',
       border: 'line',
       keys: true,
@@ -182,14 +188,13 @@ class DecisionTuiApp {
       },
       items: ['No decisions yet'],
     })
-    this.historyBox.on('click', () => this.historyBox.focus())
 
     this.outputBox = blessed.box({
       parent: this.screen,
-      top: 2,
-      left: '36%',
-      width: '64%',
-      bottom: 3,
+      top: 7,
+      left: '34%',
+      width: '66%',
+      bottom: 4,
       label: ' Output ',
       border: 'line',
       style: { border: { fg: '#5f87ff' } },
@@ -201,16 +206,15 @@ class DecisionTuiApp {
       mouse: true,
       content: renderResult(this.state),
     })
-    this.outputBox.on('click', () => this.outputBox.focus())
 
     this.footer = blessed.box({
       parent: this.screen,
       bottom: 0,
       left: 0,
       width: '100%',
-      height: 3,
+      height: 4,
       tags: true,
-      style: { fg: '#d7d7d7', bg: '#1f2736' },
+      style: { fg: '#d7d7d7', bg: '#1b2330' },
       content: this.renderFooterContent(),
     })
 
@@ -223,8 +227,18 @@ class DecisionTuiApp {
     return mode === 'openai' ? createOpenAiProvider() : new HeuristicDebateProvider()
   }
 
+  private isTypingInPrompt(): boolean {
+    return this.screen.focused === this.inputBox
+  }
+
   private renderFooterContent(): string {
-    return ` ${this.state.statusMessage}\n ${this.state.commandHint} `
+    const mode = this.state.mode.toUpperCase()
+    return [
+      ` Status: ${this.state.statusMessage} | Mode: ${mode}`,
+      ' [Enter] Run  [I] Focus Prompt  [E] Guided Edit  [R] Rerun History',
+      ' [A] Audit  [D] Details  [M] Model  [[ / ]] History Nav  [Tab] Focus Cycle  [Q] Quit',
+      '',
+    ].join('\n')
   }
 
   private setStatus(value: string): void {
@@ -234,24 +248,11 @@ class DecisionTuiApp {
 
   private focusInput(): void {
     this.inputBox.focus()
-    this.beginInputCapture()
-  }
-
-  private beginInputCapture(): void {
-    if (this.isReadingInput) {
-      return
-    }
-    this.isReadingInput = true
-    this.inputBox.readInput((_error, value) => {
-      this.isReadingInput = false
-      if (typeof value === 'string') {
-        this.inputBox.setValue(value)
-      }
-    })
+    this.screen.render()
   }
 
   private log(message: string): void {
-    this.state.logs = [...this.state.logs.slice(-40), message]
+    this.state.logs = [...this.state.logs.slice(-50), message]
     this.setStatus(message)
   }
 
@@ -269,7 +270,7 @@ class DecisionTuiApp {
   }
 
   private render(): void {
-    this.briefBox.setContent(renderDraft(this.state))
+    this.briefBox.setContent(renderBrief(this.state))
     this.outputBox.setContent(renderResult(this.state))
     this.footer.setContent(this.renderFooterContent())
     this.updateHistory()
@@ -292,7 +293,6 @@ class DecisionTuiApp {
     this.state.currentInput = input
     this.state.runState = 'running'
     this.log(`Running decision in ${this.state.mode.toUpperCase()} mode...`)
-    this.setStatus('Running...')
     this.render()
 
     try {
@@ -313,7 +313,7 @@ class DecisionTuiApp {
       ].slice(0, 50)
       this.state.selectedHistoryIndex = 0
       this.state.runState = 'done'
-      this.setStatus(`Done. ${recordDecision.toUpperCase()}  |  Artifact: ${run.artifactPath}`)
+      this.setStatus(`Done. ${recordDecision.toUpperCase()} | ${run.artifactPath}`)
     } catch (error) {
       this.state.runState = 'error'
       const message = error instanceof Error ? error.message : String(error)
@@ -335,7 +335,7 @@ class DecisionTuiApp {
 
     this.inputBox.setValue(item.input.context)
     this.state.currentInput = item.input
-    this.setStatus('Loaded previous prompt. Edit it and press Enter to rerun.')
+    this.setStatus('Loaded previous prompt. Edit and press Enter to rerun.')
     this.render()
     this.focusInput()
   }
@@ -357,24 +357,45 @@ class DecisionTuiApp {
     })
 
     this.screen.key(['i'], () => {
-      this.setStatus('Input focused.')
+      this.setStatus('Prompt focused.')
       this.focusInput()
       this.render()
     })
 
+    this.screen.key(['tab'], () => {
+      if (this.screen.focused === this.inputBox) {
+        this.historyBox.focus()
+      } else if (this.screen.focused === this.historyBox) {
+        this.outputBox.focus()
+      } else {
+        this.focusInput()
+      }
+      this.setStatus('Focus changed.')
+      this.render()
+    })
+
     this.screen.key(['a'], () => {
+      if (this.isTypingInPrompt()) {
+        return
+      }
       this.state.showAudit = !this.state.showAudit
       this.setStatus(`Audit ${this.state.showAudit ? 'shown' : 'hidden'}.`)
       this.render()
     })
 
     this.screen.key(['d'], () => {
+      if (this.isTypingInPrompt()) {
+        return
+      }
       this.state.showDetails = !this.state.showDetails
       this.setStatus(`Details ${this.state.showDetails ? 'shown' : 'hidden'}.`)
       this.render()
     })
 
     this.screen.key(['m'], () => {
+      if (this.isTypingInPrompt()) {
+        return
+      }
       if (!process.env.OPENAI_API_KEY) {
         this.setStatus('OPENAI_API_KEY missing. Heuristic mode only.')
         this.render()
@@ -388,11 +409,22 @@ class DecisionTuiApp {
       this.render()
     })
 
-    this.screen.key(['e'], () => this.openGuidedEdit())
-    this.screen.key(['r'], () => this.rerunSelectedWithEdits())
+    this.screen.key(['e'], () => {
+      if (this.isTypingInPrompt()) {
+        return
+      }
+      this.openGuidedEdit()
+    })
+
+    this.screen.key(['r'], () => {
+      if (this.isTypingInPrompt()) {
+        return
+      }
+      this.rerunSelectedWithEdits()
+    })
 
     this.screen.key(['['], () => {
-      if (this.state.history.length === 0) {
+      if (this.isTypingInPrompt() || this.state.history.length === 0) {
         return
       }
       this.state.selectedHistoryIndex = Math.min(
@@ -404,23 +436,11 @@ class DecisionTuiApp {
     })
 
     this.screen.key([']'], () => {
-      if (this.state.history.length === 0) {
+      if (this.isTypingInPrompt() || this.state.history.length === 0) {
         return
       }
       this.state.selectedHistoryIndex = Math.max(0, this.state.selectedHistoryIndex - 1)
       this.setStatus('History selection moved up.')
-      this.render()
-    })
-
-    this.screen.key(['tab'], () => {
-      if (this.screen.focused === this.inputBox) {
-        this.historyBox.focus()
-      } else if (this.screen.focused === this.historyBox) {
-        this.outputBox.focus()
-      } else {
-        this.focusInput()
-      }
-      this.setStatus('Focus changed.')
       this.render()
     })
   }
