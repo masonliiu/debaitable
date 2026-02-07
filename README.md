@@ -52,6 +52,21 @@ structured debate rounds and outputs a Decision Record plus an audit trail of al
 3. Run from any terminal:
    - `debaitable`
 
+## Install Via curl
+- Quick installer:
+  - `curl -fsSL https://raw.githubusercontent.com/masonliiu/DebAItable/master/scripts/install.sh | bash`
+
+## Install Via Homebrew (Tap)
+1. Create a tap repo:
+   - `homebrew-debaitable`
+2. Copy formula from:
+   - `packaging/homebrew/Formula/debaitable.rb`
+3. In the tap repo, place it at:
+   - `Formula/debaitable.rb`
+4. Install:
+   - `brew tap masonliiu/debaitable`
+   - `brew install debaitable`
+
 ## CLI + Web In One Repo
 - Keep CLI source under `src/` and future web frontend under `web/`.
 - npm publish only ships files listed in `package.json -> files`, so web code stays out of the npm package.
