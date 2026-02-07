@@ -8,11 +8,11 @@ import { runDecisionPipeline, TuiSessionContext } from './runner'
 import { createInitialState, SessionHistoryItem, TuiState } from './state'
 
 const BRAND_ASCII = [
-  ' ____  _____ ____    _    ___ _____ _   _    _    ____  _     _____ ',
-  '|  _ \\| ____| __ )  / \\  |_ _|_   _| | | |  / \\  | __ )| |   | ____|',
-  "| | | |  _| |  _ \\ / _ \\  | |  | | | |_| | / _ \\ |  _ \\| |   |  _|  ",
-  '| |_| | |___| |_) / ___ \\ | |  | | |  _  |/ ___ \\| |_) | |___| |___ ',
-  '|____/|_____|____/_/   \\_\\___| |_| |_| |_/_/   \\_\\____/|_____|_____|',
+  ' ____  _____ ____    _    ___ _____  _    ____  _     _____ ',
+  '|  _ \\| ____| __ )  / \\  |_ _|_   _|/ \\  | __ )| |   | ____|',
+  "| | | |  _| |  _ \\ / _ \\  | |  | | / _ \\ |  _ \\| |   |  _|  ",
+  '| |_| | |___| |_) / ___ \\ | |  | |/ ___ \\| |_) | |___| |___ ',
+  '|____/|_____|____/_/   \\_\\___| |_/_/   \\_\\____/|_____|_____|',
 ].join('\n')
 
 const THEME = {
@@ -133,7 +133,7 @@ class DecisionTuiApp {
       height: 7,
       tags: true,
       style: { fg: THEME.brandFg, bg: THEME.panelBg },
-      content: `${BRAND_ASCII}\nStructured debate. Defensible decisions.`,
+      content: `${BRAND_ASCII}\nMake specialized, trained LLMs debate to achieve a refined consensus.`,
     })
 
     this.inputBox = blessed.textbox({
@@ -172,7 +172,7 @@ class DecisionTuiApp {
       top: 17,
       left: 0,
       width: '34%',
-      bottom: 4,
+      bottom: 5,
       label: ' Session History ',
       border: 'line',
       keys: true,
@@ -192,7 +192,7 @@ class DecisionTuiApp {
       top: 7,
       left: '34%',
       width: '66%',
-      bottom: 4,
+      bottom: 5,
       label: ' Output ',
       border: 'line',
       style: { border: { fg: THEME.panelBorder }, fg: THEME.primaryText, bg: THEME.bg },
@@ -210,7 +210,7 @@ class DecisionTuiApp {
       bottom: 0,
       left: 0,
       width: '100%',
-      height: 4,
+      height: 5,
       tags: true,
       style: { fg: THEME.secondaryText, bg: THEME.panelBg },
       content: this.renderFooterContent(),
@@ -233,12 +233,22 @@ class DecisionTuiApp {
     return this.screen.focused === this.inputBox
   }
 
+  private focusHistory(): void {
+    this.historyBox.focus()
+    this.screen.render()
+  }
+
+  private focusOutput(): void {
+    this.outputBox.focus()
+    this.screen.render()
+  }
+
   private renderFooterContent(): string {
     const mode = this.state.mode.toUpperCase()
     return [
       ` Status: ${this.state.statusMessage} | Mode: ${mode}`,
-      ' [Enter] Run  [Tab] Focus  [R/Ctrl+R] Rerun  [Q/Ctrl+C] Quit',
-      ' [D/A/M] or [F2/F3/F4] for details, audit, and mode',
+      ' [Enter] Run  [Arrows] Move panes  [A] Audit  [M] Model',
+      ' [Q] Quit  [Ctrl+C] Force Quit',
       '',
     ].join('\n')
   }
@@ -354,24 +364,43 @@ class DecisionTuiApp {
   }
 
   private bindKeys(): void {
-    this.screen.key(['q', 'C-c'], () => {
+    this.screen.key(['q'], () => {
+      if (this.isTypingInPrompt()) {
+        return
+      }
       this.screen.destroy()
       process.exit(0)
     })
 
-    this.screen.key(['tab'], () => {
-      if (this.screen.focused === this.inputBox) {
-        this.historyBox.focus()
-      } else if (this.screen.focused === this.historyBox) {
-        this.outputBox.focus()
-      } else {
-        this.focusInput()
-      }
-      this.setStatus('Focus changed.')
-      this.render()
+    this.screen.key(['C-c'], () => {
+      this.screen.destroy()
+      process.exit(0)
     })
 
-    this.screen.key(['a', 'f3'], () => {
+    this.inputBox.key(['down'], () => {
+      this.focusHistory()
+    })
+
+    this.inputBox.key(['right'], () => {
+      this.focusOutput()
+    })
+
+    this.historyBox.key(['up'], () => {
+      const selectedIndex = this.getHistorySelectionIndex()
+      if (selectedIndex <= 0) {
+        this.focusInput()
+      }
+    })
+
+    this.historyBox.key(['right'], () => {
+      this.focusOutput()
+    })
+
+    this.outputBox.key(['left'], () => {
+      this.focusHistory()
+    })
+
+    this.screen.key(['a'], () => {
       if (this.isTypingInPrompt()) {
         return
       }
@@ -380,16 +409,7 @@ class DecisionTuiApp {
       this.render()
     })
 
-    this.screen.key(['d', 'f2'], () => {
-      if (this.isTypingInPrompt()) {
-        return
-      }
-      this.state.showDetails = !this.state.showDetails
-      this.setStatus(`Details ${this.state.showDetails ? 'shown' : 'hidden'}.`)
-      this.render()
-    })
-
-    this.screen.key(['m', 'f4'], () => {
+    this.screen.key(['m'], () => {
       if (this.isTypingInPrompt()) {
         return
       }
@@ -404,13 +424,6 @@ class DecisionTuiApp {
       this.session.provider = this.makeProvider(next)
       this.setStatus(`Mode switched to ${next.toUpperCase()}.`)
       this.render()
-    })
-
-    this.screen.key(['r', 'C-r'], () => {
-      if (this.isTypingInPrompt()) {
-        return
-      }
-      this.rerunSelectedWithEdits()
     })
   }
 
