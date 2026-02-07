@@ -52,6 +52,14 @@ structured debate rounds and outputs a Decision Record plus an audit trail of al
 3. Run from any terminal:
    - `debaitable`
 
+## CLI + Web In One Repo
+- Keep CLI source under `src/` and future web frontend under `web/`.
+- npm publish only ships files listed in `package.json -> files`, so web code stays out of the npm package.
+- Use:
+  - `npm run build:cli` for npm release artifacts
+  - `npm run build:web` for website deploy artifacts (when `web/` is set up)
+  - `npm run build` defaults to CLI build
+
 ## Repository Scope (Today)
 - Engine modules under `src/`:
   - `core`, `api`, `orchestration`, `jobs`, `persistence`, `ai`, `cli`
