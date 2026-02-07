@@ -70,6 +70,42 @@ const ensureRoleKey = (expected: string, actual: string): void => {
   }
 }
 
+const BUSINESS_JARGON = [
+  "kpi",
+  "sla",
+  "rollout",
+  "pilot",
+  "canary",
+  "funnel",
+  "activation",
+  "sponsor rev",
+  "market share",
+  "go to market",
+]
+
+const countMatches = (text: string, terms: string[]): number =>
+  terms.reduce((count, term) => (text.includes(term) ? count + 1 : count), 0)
+
+const isLikelyOffTopic = (input: DecisionInput, output: DecisionRecord): boolean => {
+  if (input.decisionType !== "general") {
+    return false
+  }
+  const subjectText = `${input.title} ${input.context} ${input.goals.join(" ")} ${input.constraints.join(" ")}`
+    .toLowerCase()
+  const outputText = [
+    output.summary,
+    output.rationale,
+    output.executiveDecision.stopGoCriteria,
+    ...output.executiveDecision.why,
+    ...output.actions,
+  ]
+    .join(" ")
+    .toLowerCase()
+  const outputJargon = countMatches(outputText, BUSINESS_JARGON)
+  const subjectJargon = countMatches(subjectText, BUSINESS_JARGON)
+  return outputJargon >= 2 && subjectJargon === 0
+}
+
 const runProposals = async ({ input, roles, provider }: RoundContext) =>
   Promise.all(
     roles.map(async (role) => {
@@ -156,6 +192,9 @@ const runDecisionRecord = async (
       parseDecisionRecord(response.output)
     )
     assertDecisionRecordQuality(output)
+    if (isLikelyOffTopic(input, output)) {
+      throw new BadRequestError("Decision record relevance: output drifted from the input subject")
+    }
     return { ...response, output }
   } catch {
     return {

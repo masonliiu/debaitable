@@ -44,6 +44,7 @@ const baseInstructions = [
   "Use plain, direct language with short sentences.",
   "Avoid unexplained acronyms. If you must use one, define it once.",
   "Prioritize clear reasoning over buzzwords.",
+  "Keep claims tied to the user's subject. Do not introduce unrelated domains.",
   "Avoid placeholder text and malformed tokens.",
 ].join(" ")
 
@@ -190,6 +191,8 @@ export const buildDecisionRecordPrompt = (
     "",
     "Task: Produce the final Decision Record with rationale, tradeoffs, risks, actions, confidence (0-1), minority report, and executiveDecision.",
     "Reasoning style: explain the recommendation in a simple chain: evidence -> implications -> decision.",
+    "Relevance rule: stay strictly on the user subject and wording. Do not invent unrelated business mechanics.",
+    "For non-business topics, avoid terms like KPI, SLA, rollout, pilot, canary, funnel, activation unless explicitly present in input.",
     "Limits: summary <= 420 chars, rationale <= 520 chars, minorityReport <= 360 chars.",
     "Limits: tradeoffs <= 6, risks <= 8, actions <= 8.",
     "Executive block limits: why <= 3, topRisks <= 3, topActions <= 5, stopGoCriteria <= 300 chars.",
