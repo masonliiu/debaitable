@@ -2,7 +2,7 @@
   "name": "debaitable",
   "version": "0.0.2",
   "description": "Terminal-based multi-role debate engine for structured decisions.",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "type": "module",
   "bin": {
     "debaitable": "dist/main.js"

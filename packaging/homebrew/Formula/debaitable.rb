@@ -1,6 +1,6 @@
 class Debaitable < Formula
   desc "Terminal-based multi-role debate engine for structured decisions"
-  homepage "https://github.com/masonliiu/DebAItable"
+  homepage "https://github.com/masonliiu/debaitable"
   url "https://registry.npmjs.org/debaitable/-/debaitable-0.0.2.tgz"
   sha256 "db17d75bcb90081ca8630edc64f86c6b75e81855fbbc4908c3bc22260824ea6c"
 
@@ -12,6 +12,6 @@ class Debaitable < Formula
   end
 
   test do
-    assert_predicate bin/"debaitable", :exist?
+    assert_path_exists bin/"debaitable"
   end
 end

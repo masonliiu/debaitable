@@ -54,7 +54,7 @@ structured debate rounds and outputs a Decision Record plus an audit trail of al
 
 ## Install Via curl
 - Quick installer:
-  - `curl -fsSL https://raw.githubusercontent.com/masonliiu/DebAItable/master/scripts/install.sh | bash`
+  - `curl -fsSL https://raw.githubusercontent.com/masonliiu/debaitable/master/scripts/install.sh | bash`
 
 ## Install Via Homebrew (Tap)
 1. Create a tap repo:
@@ -83,4 +83,4 @@ structured debate rounds and outputs a Decision Record plus an audit trail of al
 - No web UI or external DB wiring in this repo yet.
 
 ## License
-All rights reserved. No license is granted to use, copy, modify, or distribute this software.
+MIT. See `LICENSE`.
