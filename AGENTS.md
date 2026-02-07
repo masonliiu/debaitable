@@ -1,4 +1,4 @@
-# Quoraim Agent Guide
+# DebAItable Agent Guide
 
 This file is the contract for automated coding agents working in this repo.
 Follow it exactly and keep changes small and auditable.

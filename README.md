@@ -1,6 +1,6 @@
-# Quoraim
+# DebAItable
 
-Quoraim is an artifact-first multi-agent decision engine. Instead of free-form chat, it runs
+DebAItable is an artifact-first multi-agent decision engine. Instead of free-form chat, it runs
 structured debate rounds and outputs a Decision Record plus an audit trail of all role outputs.
 
 ## What It Does
