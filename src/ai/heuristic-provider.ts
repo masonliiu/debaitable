@@ -150,6 +150,27 @@ export class HeuristicDebateProvider implements LlmProvider {
       confidence: 0.68,
       minorityReport:
         'Conditional voters requested explicit rollback thresholds and stronger dependency ownership.',
+      executiveDecision: {
+        decision: 'iterate',
+        why: [
+          'The approach aligns with the primary activation goal and timeline constraints.',
+          'Convergence includes conditional support that can be addressed with guardrails.',
+        ],
+        topRisks: [
+          'Unclear stop and continue thresholds can create rollout risk.',
+          'Ownership gaps can delay execution and quality control.',
+          'Weak measurement can produce noisy decision signals.',
+        ],
+        topActions: [
+          'Lock success metrics, guardrails, and rollout thresholds before launch.',
+          'Run a small canary and ramp only if guardrails hold.',
+          'Assign accountable owners for dependency and risk tracking.',
+          'Validate event quality before reading experiment outcomes.',
+          'Extend experiment duration if the test is underpowered.',
+        ],
+        stopGoCriteria:
+          'Go only if lift and guardrails meet thresholds; otherwise iterate under flag or rollback.',
+      },
     }
     return toResponse(output as TOutput)
   }
