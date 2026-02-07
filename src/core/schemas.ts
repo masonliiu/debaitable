@@ -44,6 +44,14 @@ export const DebateRoundSchema = z.object({
   output: z.string().min(1),
 })
 
+export const ExecutiveDecisionSchema = z.object({
+  decision: z.enum(["go", "iterate", "stop"]),
+  why: z.array(z.string().min(1)),
+  topRisks: z.array(z.string().min(1)),
+  topActions: z.array(z.string().min(1)),
+  stopGoCriteria: z.string().min(1),
+})
+
 export const DecisionRecordSchema = z.object({
   summary: z.string().min(1),
   rationale: z.string().min(1),
@@ -52,6 +60,7 @@ export const DecisionRecordSchema = z.object({
   actions: z.array(z.string().min(1)),
   confidence: z.number().min(0).max(1),
   minorityReport: z.string().min(1),
+  executiveDecision: ExecutiveDecisionSchema,
 })
 
 export const DecisionSchema = z.object({

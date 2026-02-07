@@ -39,6 +39,13 @@ export type DecisionRecord = {
   actions: string[]
   confidence: number
   minorityReport: string
+  executiveDecision: {
+    decision: "go" | "iterate" | "stop"
+    why: string[]
+    topRisks: string[]
+    topActions: string[]
+    stopGoCriteria: string
+  }
 }
 
 export type Decision = {
