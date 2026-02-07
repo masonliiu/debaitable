@@ -9,6 +9,8 @@ import { MemoryDecisionQueue, runDecisionJob } from '../jobs'
 import { MemoryDecisionStore } from '../persistence'
 
 const decisionTypes: DecisionType[] = ['product', 'engineering', 'hiring', 'growth']
+const defaultGoal = 'Choose the strongest path with clear tradeoffs and execution steps.'
+const defaultConstraint = 'Keep scope practical for near-term execution.'
 
 type SessionContext = {
   store: MemoryDecisionStore
@@ -41,6 +43,9 @@ const parseList = (raw: string): string[] =>
     .map((part) => part.trim())
     .filter((part) => part.length > 0)
 
+const normalizePhrase = (value: string): string =>
+  value.replace(/[?!.,;:]+$/g, '').replace(/\s+/g, ' ').trim()
+
 const askNonEmpty = async (
   rl: ReturnType<typeof createInterface>,
   label: string
@@ -66,6 +71,130 @@ const askList = async (
     }
     console.log('Please enter at least one item.')
   }
+}
+
+const toWords = (value: string): string[] =>
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter((part) => part.length > 0)
+
+const inferDecisionType = (value: string): DecisionType => {
+  const words = new Set(toWords(value))
+  if (
+    words.has('engineer') ||
+    words.has('engineering') ||
+    words.has('infra') ||
+    words.has('architecture') ||
+    words.has('technical')
+  ) {
+    return 'engineering'
+  }
+  if (
+    words.has('hire') ||
+    words.has('hiring') ||
+    words.has('recruit') ||
+    words.has('candidate') ||
+    words.has('team')
+  ) {
+    return 'hiring'
+  }
+  if (
+    words.has('growth') ||
+    words.has('acquisition') ||
+    words.has('marketing') ||
+    words.has('funnel') ||
+    words.has('activation')
+  ) {
+    return 'growth'
+  }
+  return 'product'
+}
+
+const buildTitleFromSituation = (value: string): string => {
+  const firstSentence = value.split(/[.!?]/)[0]?.trim() ?? value.trim()
+  if (firstSentence.length <= 90) {
+    return firstSentence
+  }
+  return `${firstSentence.slice(0, 87).trim()}...`
+}
+
+const extractQuotedList = (source: string, keyword: string): string[] => {
+  const regex = new RegExp(`${keyword}\\s*:\\s*([^.;\\n]+)`, 'i')
+  const match = source.match(regex)
+  if (!match) {
+    return []
+  }
+  return parseList(match[1]).map(normalizePhrase).filter((part) => part.length > 0)
+}
+
+const inferConstraints = (value: string): string[] => {
+  const explicit = extractQuotedList(value, 'constraints?')
+  if (explicit.length > 0) {
+    return explicit
+  }
+  const fragments: string[] = []
+  const patterns = [
+    /within\s+[^,.;]+/gi,
+    /by\s+[^,.;]+/gi,
+    /no\s+[^,.;]+/gi,
+    /without\s+[^,.;]+/gi,
+    /must\s+[^,.;]+/gi,
+    /cannot\s+[^,.;]+/gi,
+    /can\'t\s+[^,.;]+/gi,
+  ]
+  for (const pattern of patterns) {
+    const matches = value.match(pattern) ?? []
+    for (const match of matches) {
+      const next = normalizePhrase(match)
+      if (next.length > 0) {
+        fragments.push(next)
+      }
+    }
+  }
+  if (fragments.length > 0) {
+    const unique = [...new Set(fragments.map((item) => item.toLowerCase()))]
+    const compact = unique.filter(
+      (item) => !unique.some((other) => other !== item && item.includes(other))
+    )
+    return compact
+      .map((item) => item[0].toUpperCase() + item.slice(1))
+      .slice(0, 3)
+  }
+  const bits = value
+    .split(/[.;]/)
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0)
+  const keywords = ['within', 'by', 'deadline', 'budget', 'no ', 'cannot', "can't", 'must']
+  const inferred = bits.filter((part) =>
+    keywords.some((keyword) => part.toLowerCase().includes(keyword))
+  )
+  return inferred.length > 0
+    ? inferred.map(normalizePhrase).filter((part) => part.length > 0).slice(0, 3)
+    : [defaultConstraint]
+}
+
+const inferGoals = (value: string): string[] => {
+  const explicit = extractQuotedList(value, 'goals?')
+  if (explicit.length > 0) {
+    return explicit
+  }
+  const lower = value.toLowerCase()
+  const markers = [' to ', ' so that ', ' in order to ']
+  for (const marker of markers) {
+    const index = lower.indexOf(marker)
+    if (index >= 0) {
+      const goal = value
+        .slice(index + marker.length)
+        .replace(/\b(within|by|with no|without|no|must|cannot|can't)\b[\s\S]*$/i, '')
+      const normalizedGoal = normalizePhrase(goal)
+      if (normalizedGoal.length > 0) {
+        return [normalizedGoal.slice(0, 180)]
+      }
+    }
+  }
+  return [defaultGoal]
 }
 
 const askDecisionType = async (
@@ -105,19 +234,56 @@ const askProviderMode = async (
   }
 }
 
-const buildInput = async (
+const buildInputFromSituation = (situation: string): DecisionInput => ({
+  title: buildTitleFromSituation(situation),
+  context: situation.trim(),
+  goals: inferGoals(situation),
+  constraints: inferConstraints(situation),
+  decisionType: inferDecisionType(situation),
+})
+
+const confirmOrEditInput = async (
   rl: ReturnType<typeof createInterface>
 ): Promise<DecisionInput> => {
-  const title = await askNonEmpty(rl, 'Title')
-  const context = await askNonEmpty(rl, 'Context')
-  const goals = await askList(rl, 'Goals')
-  const constraints = await askList(rl, 'Constraints')
-  const decisionType = await askDecisionType(rl)
+  console.log('Describe your decision in one message.')
+  console.log('Tip: include objective and constraints if you have them.')
+  const situation = await askNonEmpty(rl, 'Situation')
+  const draft = buildInputFromSituation(situation)
+
+  printSection('Draft Brief')
+  console.log(`Title: ${draft.title}`)
+  console.log(`Type: ${draft.decisionType}`)
+  console.log(`Goal: ${draft.goals.join(' | ')}`)
+  console.log(`Constraints: ${draft.constraints.join(' | ')}`)
+
+  const choice = (
+    await rl.question('Press Enter to run, or type "edit" to refine: ')
+  )
+    .trim()
+    .toLowerCase()
+  if (choice !== '' && choice !== 'edit' && !choice.startsWith('edit')) {
+    console.log('Unrecognized input. Running with draft brief.')
+    return draft
+  }
+  if (choice === '' || choice === 'run' || choice.startsWith('run')) {
+    return draft
+  }
+
+  console.log('Leave blank to keep the draft value.')
+  const title = (await rl.question(`Title [${draft.title}]: `)).trim() || draft.title
+  const context = (await rl.question('Context [keep draft]: ')).trim() || draft.context
+  const goalInput = (await rl.question(`Goals (comma) [${draft.goals.join(', ')}]: `)).trim()
+  const constraintInput = (
+    await rl.question(`Constraints (comma) [${draft.constraints.join(', ')}]: `)
+  ).trim()
+  const typeEdit = (await rl.question('Edit decision type? [y/N]: ')).trim().toLowerCase()
+  const decisionType = typeEdit === 'y' || typeEdit === 'yes' ? await askDecisionType(rl) : draft.decisionType
+
   return {
     title,
     context,
-    goals,
-    constraints,
+    goals: goalInput ? parseList(goalInput) : draft.goals,
+    constraints: constraintInput ? parseList(constraintInput) : draft.constraints,
     decisionType,
   }
 }
@@ -168,31 +334,51 @@ const printList = (values: string[]) => {
   }
 }
 
-const printDecisionResult = (result: Awaited<ReturnType<typeof getDecision>>) => {
+const printDecisionResult = (
+  result: Awaited<ReturnType<typeof getDecision>>,
+  includeAuditTimeline: boolean
+) => {
   printSection('Decision Status')
   console.log(`ID: ${result.decision.id}`)
   console.log(`Status: ${result.decision.status}`)
 
-  if (result.record) {
-    printSection('Decision Record')
-    console.log(`Summary: ${result.record.summary}`)
-    console.log(`Rationale: ${result.record.rationale}`)
-    console.log(`Confidence: ${result.record.confidence}`)
-    console.log('Tradeoffs:')
-    printList(result.record.tradeoffs)
-    console.log('Risks:')
-    printList(result.record.risks)
-    console.log('Actions:')
-    printList(result.record.actions)
-    console.log(`Minority report: ${result.record.minorityReport}`)
+  if (includeAuditTimeline) {
+    printSection('Audit Timeline')
+    for (const round of result.rounds) {
+      console.log(`Round ${round.roundIndex} | ${round.roleKey}`)
+      const parsed = parseRoundOutput(round.output)
+      console.log(JSON.stringify(parsed, null, 2))
+    }
+  } else {
+    printSection('Audit Timeline')
+    console.log('Hidden in compact mode. Saved in artifact JSON.')
   }
 
-  printSection('Audit Timeline')
-  for (const round of result.rounds) {
-    console.log(`Round ${round.roundIndex} | ${round.roleKey}`)
-    const parsed = parseRoundOutput(round.output)
-    console.log(JSON.stringify(parsed, null, 2))
+  if (!result.record) {
+    return
   }
+
+  printSection('Detailed Record')
+  console.log('Tradeoffs:')
+  printList(result.record.tradeoffs)
+  console.log('Risks:')
+  printList(result.record.risks)
+  console.log('Actions:')
+  printList(result.record.actions)
+  console.log(`Minority report: ${result.record.minorityReport}`)
+
+  printSection('Final Decision')
+  console.log(`Decision: ${result.record.executiveDecision.decision.toUpperCase()}`)
+  console.log(`Summary: ${result.record.summary}`)
+  console.log(`Rationale: ${result.record.rationale}`)
+  console.log(`Confidence: ${result.record.confidence}`)
+  console.log(`Stop/Go criteria: ${result.record.executiveDecision.stopGoCriteria}`)
+  console.log('Why:')
+  printList(result.record.executiveDecision.why)
+  console.log('Top risks:')
+  printList(result.record.executiveDecision.topRisks)
+  console.log('Top actions:')
+  printList(result.record.executiveDecision.topActions)
 }
 
 const runSingleDecision = async (
@@ -250,9 +436,12 @@ export const runTui = async (): Promise<void> => {
 
     while (true) {
       printSection('New Decision')
-      const input = await buildInput(rl)
+      const input = await confirmOrEditInput(rl)
       const { decisionId, result } = await runSingleDecision(input, session)
-      printDecisionResult(result)
+      const showAudit = (await rl.question('Show full audit timeline? [y/N]: '))
+        .trim()
+        .toLowerCase()
+      printDecisionResult(result, showAudit === 'y' || showAudit === 'yes')
       const artifactPath = await saveArtifact(input, decisionId, result)
       console.log('')
       console.log(`Artifact saved to ${artifactPath}`)
