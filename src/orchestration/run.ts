@@ -37,6 +37,7 @@ import {
   normalizeCritiqueOutput,
   normalizeProposalOutput,
 } from "./normalize"
+import { synthesizeDecisionRecord } from "./synthesize"
 
 export type LlmCallResult<TOutput> = {
   output: TOutput
@@ -133,19 +134,28 @@ const runDecisionRecord = async (
   critiques: CritiqueOutput[],
   convergence: ConvergenceOutput[]
 ) => {
-  const { system, prompt } = buildDecisionRecordPrompt(
-    input,
-    proposals,
-    critiques,
-    convergence
-  )
-  const response = await provider.generate({
-    system,
-    prompt,
-    schema: DecisionRecordSchema,
-  })
-  const output = parseDecisionRecord(response.output)
-  return { ...response, output }
+  const fallback = synthesizeDecisionRecord(input, proposals, critiques, convergence)
+  try {
+    const { system, prompt } = buildDecisionRecordPrompt(
+      input,
+      proposals,
+      critiques,
+      convergence
+    )
+    const response = await provider.generate({
+      system,
+      prompt,
+      schema: DecisionRecordSchema,
+    })
+    const output = parseDecisionRecord(response.output)
+    return { ...response, output }
+  } catch {
+    return {
+      output: fallback,
+      raw: JSON.stringify(fallback),
+      model: "deterministic-synth",
+    }
+  }
 }
 
 const buildDebateRounds = (
