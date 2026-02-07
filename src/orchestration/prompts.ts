@@ -40,6 +40,8 @@ const baseInstructions = [
   "Use double quotes for all keys and string values.",
   "Do not include code fences or commentary.",
   "Arrays must contain only strings, not objects.",
+  "Keep writing concise and non-repetitive.",
+  "Avoid placeholder text and malformed tokens.",
 ].join(" ")
 
 const compactKeyHint =
@@ -71,7 +73,9 @@ const convergenceSchemaHint = (roleKey: string) =>
 const decisionRecordSchemaHint = [
   '{"summary":"...","rationale":"...","tradeoffs":["..."],',
   '"risks":["..."],"actions":["..."],"confidence":0.0,',
-  '"minorityReport":"..."}',
+  '"minorityReport":"...",',
+  '"executiveDecision":{"decision":"go|iterate|stop","why":["..."],',
+  '"topRisks":["..."],"topActions":["..."],"stopGoCriteria":"..."}}',
 ].join("")
 
 export const buildProposalPrompt = (
@@ -89,6 +93,7 @@ export const buildProposalPrompt = (
     formatDecisionInput(input),
     "",
     "Task: Provide an independent proposal.",
+    "Limits: summary <= 260 chars, recommendation <= 260 chars, rationale <= 320 chars, risks/assumptions <= 6 each, actions <= 8.",
     "Output JSON schema:",
     proposalSchemaHint(role.key),
   ].join("\n"),
@@ -114,6 +119,7 @@ export const buildCritiquePrompt = (
     compactKeyHint,
     "",
     "Task: Provide critiques and rebuttals from your perspective.",
+    "Limits: critiques/rebuttals/openQuestions <= 8 items each, each item <= 240 chars.",
     "Output JSON schema:",
     critiqueSchemaHint(role.key),
   ].join("\n"),
@@ -144,6 +150,7 @@ export const buildConvergencePrompt = (
     compactKeyHint,
     "",
     "Task: Converge and vote.",
+    "Limits: reasons/conditions <= 5 items each, each item <= 240 chars.",
     "Output JSON schema:",
     convergenceSchemaHint(role.key),
   ].join("\n"),
@@ -178,7 +185,11 @@ export const buildDecisionRecordPrompt = (
     "Vote tally:",
     formatVoteTally(tallyVotes(convergence)),
     "",
-    "Task: Produce the final Decision Record with rationale, tradeoffs, risks, actions, confidence (0-1), and minority report.",
+    "Task: Produce the final Decision Record with rationale, tradeoffs, risks, actions, confidence (0-1), minority report, and executiveDecision.",
+    "Limits: summary <= 700 chars, rationale <= 850 chars, minorityReport <= 500 chars.",
+    "Limits: tradeoffs <= 6, risks <= 8, actions <= 8.",
+    "Executive block limits: why <= 3, topRisks <= 3, topActions <= 5, stopGoCriteria <= 300 chars.",
+    "No duplicate list items. Prefer concise bullets over long paragraphs.",
     "Output JSON schema:",
     decisionRecordSchemaHint,
   ].join("\n"),

@@ -35,9 +35,11 @@ import {
 import {
   normalizeConvergenceOutput,
   normalizeCritiqueOutput,
+  normalizeDecisionRecordOutput,
   normalizeProposalOutput,
 } from "./normalize"
 import { synthesizeDecisionRecord } from "./synthesize"
+import { assertDecisionRecordQuality } from "./quality"
 
 export type LlmCallResult<TOutput> = {
   output: TOutput
@@ -134,7 +136,10 @@ const runDecisionRecord = async (
   critiques: CritiqueOutput[],
   convergence: ConvergenceOutput[]
 ) => {
-  const fallback = synthesizeDecisionRecord(input, proposals, critiques, convergence)
+  const fallback = normalizeDecisionRecordOutput(
+    synthesizeDecisionRecord(input, proposals, critiques, convergence)
+  )
+  assertDecisionRecordQuality(fallback)
   try {
     const { system, prompt } = buildDecisionRecordPrompt(
       input,
@@ -147,7 +152,10 @@ const runDecisionRecord = async (
       prompt,
       schema: DecisionRecordSchema,
     })
-    const output = parseDecisionRecord(response.output)
+    const output = normalizeDecisionRecordOutput(
+      parseDecisionRecord(response.output)
+    )
+    assertDecisionRecordQuality(output)
     return { ...response, output }
   } catch {
     return {

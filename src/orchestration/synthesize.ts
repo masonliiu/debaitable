@@ -1,6 +1,6 @@
-import { DecisionInput, DecisionRecord } from '../core'
-import { ConvergenceOutput, CritiqueOutput, ProposalOutput } from './types'
-import { tallyVotes } from './votes'
+import { DecisionInput, DecisionRecord } from "../core"
+import { ConvergenceOutput, CritiqueOutput, ProposalOutput } from "./types"
+import { tallyVotes } from "./votes"
 
 const dedupe = (values: string[]): string[] => {
   const seen = new Set<string>()
@@ -33,9 +33,9 @@ const buildRationale = (
   const proposalRationales = proposals.map((item) => item.rationale)
   const reasons = take(dedupe([...voteReasons, ...proposalRationales]), 3)
   if (reasons.length === 0) {
-    return 'Rationale assembled from role recommendations and convergence votes.'
+    return "Rationale assembled from role recommendations and convergence votes."
   }
-  return reasons.join(' ')
+  return reasons.join(" ")
 }
 
 const buildMinorityReport = (
@@ -48,9 +48,9 @@ const buildMinorityReport = (
   const openQuestions = critiques.flatMap((item) => item.openQuestions)
   const lines = take(dedupe([...dissentReasons, ...conditions, ...openQuestions]), 3)
   if (lines.length === 0) {
-    return 'No substantial minority objections were raised in convergence.'
+    return "No substantial minority objections were raised in convergence."
   }
-  return lines.join(' ')
+  return lines.join(" ")
 }
 
 const scoreConfidence = (convergence: ConvergenceOutput[]): number => {
@@ -101,16 +101,41 @@ export const synthesizeDecisionRecord = (
     tradeoffs:
       tradeoffs.length > 0
         ? tradeoffs
-        : ['Tradeoffs remain between speed of delivery and downside risk.'],
+        : ["Tradeoffs remain between speed of delivery and downside risk."],
     risks:
       risks.length > 0
         ? risks
-        : ['Risk assumptions require validation with real implementation constraints.'],
+        : ["Risk assumptions require validation with real implementation constraints."],
     actions:
       actions.length > 0
         ? actions
-        : ['Assign an owner and timeline for the next validation step.'],
+        : ["Assign an owner and timeline for the next validation step."],
     confidence: scoreConfidence(convergence),
     minorityReport: buildMinorityReport(convergence, critiques),
+    executiveDecision: {
+      decision:
+        tally.support >= Math.max(tally.conditional, tally.oppose)
+          ? "go"
+          : tally.oppose > tally.support
+            ? "stop"
+            : "iterate",
+      why: take(
+        dedupe([
+          ...convergence.flatMap((item) => item.reasons),
+          ...proposals.map((item) => item.recommendation),
+        ]),
+        3
+      ),
+      topRisks: take(
+        dedupe([
+          ...proposals.flatMap((item) => item.risks),
+          ...critiques.flatMap((item) => item.openQuestions),
+        ]),
+        3
+      ),
+      topActions: take(dedupe(proposals.flatMap((item) => item.actions)), 5),
+      stopGoCriteria:
+        "Go if activation lift and guardrails pass pre-registered thresholds; otherwise iterate under flag or stop and rollback.",
+    },
   }
 }
