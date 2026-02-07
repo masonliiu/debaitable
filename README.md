@@ -34,6 +34,13 @@ structured debate rounds and outputs a Decision Record plus an audit trail of al
    - `npm run dev`
 4. Run interactive TUI:
    - `npm run cli`
+   - Keyboard-first full-screen workflow:
+     - Type a prompt/question in the left input pane and press `Enter` to run
+     - Click in the input pane or press `i` to re-focus input after any run
+     - `a` toggle audit timeline, `d` toggle detailed record
+     - `m` switch model mode (OpenAI/heuristic when API key is present)
+     - `r` rerun selected history item with edits
+     - `[` and `]` move through session history, `tab` cycles pane focus
 5. Typecheck:
    - `npm run typecheck`
 
