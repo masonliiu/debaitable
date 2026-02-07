@@ -352,6 +352,9 @@ class DecisionTuiApp {
       void this.runCurrentInput()
       return false
     })
+    this.inputBox.on('click', () => {
+      this.focusInput()
+    })
 
     this.tipBox = blessed.box({
       parent: this.screen,
@@ -385,6 +388,19 @@ class DecisionTuiApp {
       },
       items: ['No decisions yet'],
     })
+    this.historyBox.on('click', () => {
+      this.focusHistory()
+    })
+    this.historyBox.on('select', (_item, index) => {
+      this.state.selectedHistoryIndex = Number(index)
+      this.historyTopUpPrimed = false
+      const selected = this.state.history[this.state.selectedHistoryIndex]
+      if (selected) {
+        this.state.currentResult = selected.result
+        this.state.currentInput = selected.input
+      }
+      this.render()
+    })
 
     this.outputBox = blessed.box({
       parent: this.screen,
@@ -402,6 +418,9 @@ class DecisionTuiApp {
       vi: true,
       mouse: true,
       content: renderResult(this.state),
+    })
+    this.outputBox.on('click', () => {
+      this.focusOutput()
     })
 
     this.helpModal = blessed.box({
@@ -569,9 +588,7 @@ class DecisionTuiApp {
   private renderLoadingOutput(): string {
     const dots = '.'.repeat((this.loadingFrame % 4) + 1).padEnd(4, ' ')
     const spinner = ['|', '/', '-', '\\'][this.loadingFrame % 4]
-    return [
-      `{bold}${spinner} Running debate {dots}{/bold}`,
-    ].join('\n')
+    return [`{bold}${spinner} Running debate ${dots}{/bold}`].join('\n')
   }
 
   private startLoadingAnimation(): void {
