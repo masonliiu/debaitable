@@ -1,3 +1,4 @@
+import { DecisionInput } from "./core"
 import { createOpenAiProvider, StaticLlmProvider } from "./ai"
 import { roleDefinitions } from "./core"
 import { runDemo } from "./cli"
@@ -72,13 +73,13 @@ const provider = process.env.OPENAI_API_KEY
   ? createOpenAiProvider()
   : new StaticLlmProvider(buildResponses())
 
-const input = {
+const input: DecisionInput = {
   title: "Launch a new onboarding flow",
   context: "We want to improve activation for new users.",
   goals: ["Increase activation by 15%"],
   constraints: ["Two-week implementation window"],
   decisionType: "product",
-} as const
+}
 
 runDemo(input, roleDefinitions, provider)
   .then((result) => {
