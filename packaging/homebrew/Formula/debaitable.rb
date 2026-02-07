@@ -8,7 +8,10 @@ class Debaitable < Formula
 
   def install
     libexec.install Dir["*"]
-    (bin/"debaitable").write_env_script Formula["node"].opt_bin/"node", libexec/"dist/main.js"
+    (bin/"debaitable").write <<~SH
+      #!/bin/bash
+      exec "#{Formula["node"].opt_bin}/node" "#{libexec}/dist/main.js" "$@"
+    SH
   end
 
   test do
