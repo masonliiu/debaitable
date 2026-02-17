@@ -43,29 +43,38 @@ structured debate rounds and outputs a Decision Record plus an audit trail of al
 5. Typecheck:
    - `npm run typecheck`
 
-## Install From npm (Global CLI)
-1. Publish package from this repo:
-   - `npm login`
-   - `npm publish --access public`
-2. Install globally:
+## Install Methods For Users
+
+### 1) npm global install
+1. Install:
    - `npm i -g debaitable`
-3. Run from any terminal:
+2. Run:
    - `debaitable`
 
-## Install Via curl
-- Quick installer:
-  - `curl -fsSL https://raw.githubusercontent.com/masonliiu/debaitable/master/scripts/install.sh | bash`
+If `debaitable` is not found after install:
+- Add npm global bin to PATH (zsh):
+  - `echo 'export PATH="$(npm config get prefix)/bin:$PATH"' >> ~/.zshrc`
+  - `source ~/.zshrc`
 
-## Install Via Homebrew (Tap)
-1. Create a tap repo:
-   - `homebrew-debaitable`
-2. Copy formula from:
-   - `packaging/homebrew/Formula/debaitable.rb`
-3. In the tap repo, place it at:
-   - `Formula/debaitable.rb`
-4. Install:
-   - `brew tap masonliiu/debaitable`
-   - `brew install debaitable`
+### 2) npx / npm exec (no global install)
+- `npx debaitable`
+- or `npm exec debaitable`
+
+### 3) curl installer
+- `curl -fsSL https://raw.githubusercontent.com/masonliiu/debaitable/master/scripts/install.sh | bash`
+
+This installs `debaitable` globally with npm and prints PATH instructions if needed.
+
+### 4) Homebrew tap install (today)
+- `brew tap masonliiu/debaitable`
+- `brew install debaitable`
+
+Note:
+- `brew install debaitable` without tapping works only after acceptance into `homebrew-core`.
+
+### 5) Homebrew core install (future)
+- Target command after merge to core:
+  - `brew install debaitable`
 
 ## CLI + Web In One Repo
 - Keep CLI source under `src/` and future web frontend under `web/`.

@@ -14,7 +14,7 @@ if ! command -v npm >/dev/null 2>&1; then
 fi
 
 echo "Installing ${PACKAGE_NAME} globally..."
-npm install -g "${PACKAGE_NAME}"
+npm install -g "${PACKAGE_NAME}@latest"
 
 GLOBAL_PREFIX="$(npm config get prefix)"
 GLOBAL_BIN="${GLOBAL_PREFIX}/bin"
@@ -28,4 +28,5 @@ Then restart your shell.
 EOF
 else
   echo "Installed successfully. Run: ${PACKAGE_NAME}"
+  echo "You can also run without global install via: npx ${PACKAGE_NAME}"
 fi

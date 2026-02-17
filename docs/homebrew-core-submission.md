@@ -2,6 +2,13 @@
 
 This project can only be accepted into `homebrew-core` if it meets Homebrew's formula policy.
 
+## Current install status
+- Works today via personal tap:
+  - `brew tap masonliiu/debaitable`
+  - `brew install debaitable`
+- Not available yet as direct core install:
+  - `brew install debaitable` (without tap) only works after merge into `homebrew-core`
+
 ## Required prerequisites
 - Public source repository
 - Open source license file in repo root (`LICENSE`)
