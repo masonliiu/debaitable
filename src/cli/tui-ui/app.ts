@@ -468,6 +468,17 @@ class DecisionTuiApp {
     return this.screen.focused === this.inputBox
   }
 
+  private isHistoryPaneFocused(): boolean {
+    let node = this.screen.focused as blessed.Widgets.Node | null
+    while (node) {
+      if (node === this.historyBox) {
+        return true
+      }
+      node = (node.parent as blessed.Widgets.Node | null) ?? null
+    }
+    return false
+  }
+
   private stopPromptEditing(): void {
     ;(this.inputBox as unknown as { cancel?: () => void }).cancel?.()
   }
@@ -749,7 +760,7 @@ class DecisionTuiApp {
     })
 
     this.screen.key(['up'], () => {
-      if (this.screen.focused !== this.historyBox) {
+      if (!this.isHistoryPaneFocused()) {
         return
       }
       if (this.state.history.length === 0) {
@@ -768,7 +779,7 @@ class DecisionTuiApp {
     })
 
     this.screen.key(['down'], () => {
-      if (this.screen.focused !== this.historyBox) {
+      if (!this.isHistoryPaneFocused()) {
         return
       }
       if (this.state.history.length === 0) {
@@ -784,14 +795,14 @@ class DecisionTuiApp {
     })
 
     this.screen.key(['right'], () => {
-      if (this.screen.focused !== this.historyBox) {
+      if (!this.isHistoryPaneFocused()) {
         return
       }
       this.focusOutput()
     })
 
     this.screen.key(['enter'], () => {
-      if (this.screen.focused !== this.historyBox) {
+      if (!this.isHistoryPaneFocused()) {
         return
       }
       this.rerunSelectedWithEdits()
