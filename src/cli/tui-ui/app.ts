@@ -753,6 +753,7 @@ class DecisionTuiApp {
         return
       }
       if (this.state.history.length === 0) {
+        this.focusInput()
         return
       }
       const selectedIndex = this.getHistorySelectionIndex()
