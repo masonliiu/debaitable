@@ -19,7 +19,7 @@ export type DecisionArtifact = {
   decisionId: string
   input: DecisionInput
   status: string
-  rounds: { roundIndex: number; roleKey: string; output: unknown }[]
+  rounds: { roundIndex: number; roleKey: string; model: string; output: unknown }[]
   record: unknown
   runs: unknown[]
 }
@@ -45,6 +45,7 @@ export const saveArtifact = async (
     rounds: result.rounds.map((round) => ({
       roundIndex: round.roundIndex,
       roleKey: round.roleKey,
+      model: round.model,
       output: parseRoundOutput(round.output),
     })),
     record: result.record,

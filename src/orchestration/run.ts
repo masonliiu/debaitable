@@ -223,16 +223,19 @@ const buildDebateRounds = (
   const proposalRounds = proposals.map((proposal) => ({
     roundIndex: 1,
     roleKey: proposal.output.roleKey,
+    model: proposal.model,
     output: serializeProposalOutput(proposal.output),
   }))
   const critiqueRounds = critiques.map((critique) => ({
     roundIndex: 2,
     roleKey: critique.output.roleKey,
+    model: critique.model,
     output: serializeCritiqueOutput(critique.output),
   }))
   const convergenceRounds = convergence.map((converged) => ({
     roundIndex: 3,
     roleKey: converged.output.roleKey,
+    model: converged.model,
     output: serializeConvergenceOutput(converged.output),
   }))
   return [...proposalRounds, ...critiqueRounds, ...convergenceRounds]

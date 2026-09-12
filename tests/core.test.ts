@@ -155,4 +155,15 @@ test("runDebate routes roles to their assigned providers and captures model iden
   assert.ok(skepticConv, "skeptic convergence must exist")
   assert.equal(strategistConv.model, "model-alpha", "strategist convergence model")
   assert.equal(skepticConv.model, "model-beta", "skeptic convergence model")
+
+  // The durable rounds consumed by persistence and exported artifacts must
+  // retain the model identity, not only the transient in-memory call results.
+  assert.deepEqual(
+    run.rounds.filter((round) => round.roleKey === "strategist").map((round) => round.model),
+    ["model-alpha", "model-alpha", "model-alpha"]
+  )
+  assert.deepEqual(
+    run.rounds.filter((round) => round.roleKey === "skeptic").map((round) => round.model),
+    ["model-beta", "model-beta", "model-beta"]
+  )
 })

@@ -28,6 +28,7 @@ export type RoleDefinition = {
 export type DebateRound = {
   roundIndex: number
   roleKey: RoleKey
+  model: string
   output: string
 }
 

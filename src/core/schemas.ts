@@ -42,6 +42,7 @@ export const RoleDefinitionSchema = z.object({
 export const DebateRoundSchema = z.object({
   roundIndex: z.number().int().nonnegative(),
   roleKey: RoleKeySchema,
+  model: z.string().min(1),
   output: z.string().min(1),
 })
 
