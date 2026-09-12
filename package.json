@@ -22,6 +22,7 @@
     "build:web": "sh -c 'if [ -f web/package.json ]; then npm --prefix web run build; else echo \"web/ not set up yet\"; fi'",
     "build": "npm run build:cli",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsx --test tests/**/*.test.ts",
     "prepublishOnly": "npm run typecheck && npm run build:cli"
   },
   "dependencies": {
