@@ -7,6 +7,11 @@ export type RetryOptions = {
   delayMs?: number
   /** Multiplier applied to delayMs after each failure (exponential backoff). Defaults to 2. */
   backoffFactor?: number
+  /**
+   * Optional predicate called with the caught error before each retry.
+   * Return false to immediately re-throw the error without retrying.
+   */
+  shouldRetry?: (error: unknown) => boolean
 }
 
 const sleep = (ms: number): Promise<void> =>
@@ -21,12 +26,14 @@ export class RetryProvider implements LlmProvider {
   private readonly maxAttempts: number
   private readonly delayMs: number
   private readonly backoffFactor: number
+  private readonly shouldRetry: ((error: unknown) => boolean) | undefined
 
   constructor(inner: LlmProvider, options: RetryOptions = {}) {
     this.inner = inner
     this.maxAttempts = options.maxAttempts ?? 3
     this.delayMs = options.delayMs ?? 200
     this.backoffFactor = options.backoffFactor ?? 2
+    this.shouldRetry = options.shouldRetry
     if (!Number.isInteger(this.maxAttempts) || this.maxAttempts < 1) {
       throw new RangeError("maxAttempts must be a positive integer")
     }
@@ -48,6 +55,9 @@ export class RetryProvider implements LlmProvider {
         return await this.inner.generate<TSchema, TOutput>(request)
       } catch (err) {
         lastError = err
+        if (this.shouldRetry !== undefined && !this.shouldRetry(err)) {
+          throw err
+        }
         if (attempt < this.maxAttempts) {
           await sleep(delay)
           delay = delay * this.backoffFactor
