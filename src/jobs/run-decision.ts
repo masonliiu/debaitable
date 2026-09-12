@@ -1,11 +1,13 @@
 import { LlmProvider } from "../ai"
 import { DecisionInput, NotFoundError, RoleDefinition } from "../core"
-import { runDebate } from "../orchestration"
+import { runDebate, RunDebateOptions } from "../orchestration"
+import { RoleProviderMap } from "../orchestration/types"
 import { DecisionStore } from "../persistence"
 import { DecisionJobPayload } from "./types"
 
 export type DecisionJobContext = {
   provider: LlmProvider
+  providerMap?: RoleProviderMap
   store: DecisionStore
   roles: RoleDefinition[]
 }
@@ -41,11 +43,13 @@ export const runDecisionJob = async (
     status: "running",
   })
   try {
-    const run = await runDebate({
+    const debateOptions: RunDebateOptions = {
       input: toDecisionInput(decision),
       roles: context.roles,
       provider: context.provider,
-    })
+      providerMap: context.providerMap,
+    }
+    const run = await runDebate(debateOptions)
     await context.store.saveDebateRounds(decision.id, run.rounds)
     await context.store.saveDecisionRecord(decision.id, run.decisionRecord.output)
     await context.store.saveDecisionRun({
