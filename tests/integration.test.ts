@@ -1,6 +1,7 @@
 import { describe, it } from "node:test"
 import assert from "node:assert/strict"
 import { HeuristicDebateProvider } from "../src/ai/heuristic-provider.js"
+import type { LlmProvider, LlmRequest, LlmResponse } from "../src/ai/types.js"
 import { roleDefinitions } from "../src/core/roles.js"
 import { DecisionRecordSchema } from "../src/core/schemas.js"
 import { runDecisionJob } from "../src/jobs/run-decision.js"
@@ -83,5 +84,48 @@ describe("Integration: full decision pipeline with HeuristicDebateProvider", () 
         return true
       }
     )
+  })
+
+  it("routes per-role providers via providerMap: strategist uses sentinel, others use default", async () => {
+    // Sentinel provider: delegates to HeuristicDebateProvider but stamps a custom model identifier.
+    class StrategistSentinelProvider implements LlmProvider {
+      private inner = new HeuristicDebateProvider()
+      async generate<TSchema, TOutput>(
+        request: LlmRequest<TSchema>
+      ): Promise<LlmResponse<TOutput>> {
+        const response = await this.inner.generate<TSchema, TOutput>(request)
+        return { ...response, model: "strategist-sentinel" }
+      }
+    }
+
+    const store = new MemoryDecisionStore()
+    const provider = new HeuristicDebateProvider()
+    const sentinelProvider = new StrategistSentinelProvider()
+    const providerMap = { strategist: sentinelProvider as LlmProvider }
+
+    const decision = await store.createDecision(SAMPLE_INPUT)
+    await runDecisionJob(
+      { decisionId: decision.id, runId: "run-004" },
+      { provider, providerMap, store, roles: roleDefinitions }
+    )
+
+    const rounds = await store.getDebateRounds(decision.id)
+    assert.ok(rounds.length > 0, "debate rounds must be stored")
+
+    for (const round of rounds) {
+      if (round.roleKey === "strategist") {
+        assert.equal(
+          round.model,
+          "strategist-sentinel",
+          `strategist round (index ${round.roundIndex}) must use strategist-sentinel model`
+        )
+      } else {
+        assert.equal(
+          round.model,
+          "heuristic-v1",
+          `non-strategist round for role '${round.roleKey}' (index ${round.roundIndex}) must use heuristic-v1 model`
+        )
+      }
+    }
   })
 })
