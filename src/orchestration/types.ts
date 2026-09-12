@@ -1,4 +1,7 @@
+import { LlmProvider } from "../ai"
 import { RoleKey } from "../core"
+
+export type RoleProviderMap = Partial<Record<RoleKey, LlmProvider>>
 
 export type ProposalOutput = {
   roleKey: RoleKey

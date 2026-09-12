@@ -26,7 +26,7 @@ import {
   serializeCritiqueOutput,
   serializeProposalOutput,
 } from "./serialize"
-import { ConvergenceOutput, CritiqueOutput, ProposalOutput } from "./types"
+import { ConvergenceOutput, CritiqueOutput, ProposalOutput, RoleProviderMap } from "./types"
 import {
   parseConvergenceOutput,
   parseCritiqueOutput,
@@ -60,7 +60,14 @@ type RoundContext = {
   input: DecisionInput
   roles: RoleDefinition[]
   provider: LlmProvider
+  providerMap?: RoleProviderMap
 }
+
+const resolveProvider = (
+  role: RoleDefinition,
+  defaultProvider: LlmProvider,
+  providerMap?: RoleProviderMap
+): LlmProvider => (providerMap && providerMap[role.key]) ?? defaultProvider
 
 const ensureRoleKey = (expected: string, actual: string): void => {
   if (expected !== actual) {
@@ -106,11 +113,12 @@ const isLikelyOffTopic = (input: DecisionInput, output: DecisionRecord): boolean
   return outputJargon >= 2 && subjectJargon === 0
 }
 
-const runProposals = async ({ input, roles, provider }: RoundContext) =>
+const runProposals = async ({ input, roles, provider, providerMap }: RoundContext) =>
   Promise.all(
     roles.map(async (role) => {
+      const roleProvider = resolveProvider(role, provider, providerMap)
       const { system, prompt } = buildProposalPrompt(role, input)
-      const response = await provider.generate({
+      const response = await roleProvider.generate({
         system,
         prompt,
         schema: ProposalOutputSchema,
@@ -122,13 +130,14 @@ const runProposals = async ({ input, roles, provider }: RoundContext) =>
   )
 
 const runCritiques = async (
-  { input, roles, provider }: RoundContext,
+  { input, roles, provider, providerMap }: RoundContext,
   proposals: ProposalOutput[]
 ) =>
   Promise.all(
     roles.map(async (role) => {
+      const roleProvider = resolveProvider(role, provider, providerMap)
       const { system, prompt } = buildCritiquePrompt(role, input, proposals)
-      const response = await provider.generate({
+      const response = await roleProvider.generate({
         system,
         prompt,
         schema: CritiqueOutputSchema,
@@ -140,19 +149,20 @@ const runCritiques = async (
   )
 
 const runConvergence = async (
-  { input, roles, provider }: RoundContext,
+  { input, roles, provider, providerMap }: RoundContext,
   proposals: ProposalOutput[],
   critiques: CritiqueOutput[]
 ) =>
   Promise.all(
     roles.map(async (role) => {
+      const roleProvider = resolveProvider(role, provider, providerMap)
       const { system, prompt } = buildConvergencePrompt(
         role,
         input,
         proposals,
         critiques
       )
-      const response = await provider.generate({
+      const response = await roleProvider.generate({
         system,
         prompt,
         schema: ConvergenceOutputSchema,
@@ -228,26 +238,35 @@ const buildDebateRounds = (
   return [...proposalRounds, ...critiqueRounds, ...convergenceRounds]
 }
 
+export type RunDebateOptions = {
+  input: DecisionInput
+  roles: RoleDefinition[]
+  provider: LlmProvider
+  providerMap?: RoleProviderMap
+}
+
 export const runDebate = async ({
   input,
   roles,
   provider,
-}: RoundContext): Promise<DebateRun> => {
+  providerMap,
+}: RunDebateOptions): Promise<DebateRun> => {
   assertValidRoles(roles)
   const sanitizedInput = sanitizeDecisionInput(input)
   const proposals = await runProposals({
     input: sanitizedInput,
     roles,
     provider,
+    providerMap,
   })
   const proposalOutputs = proposals.map((proposal) => proposal.output)
   const critiques = await runCritiques(
-    { input: sanitizedInput, roles, provider },
+    { input: sanitizedInput, roles, provider, providerMap },
     proposalOutputs
   )
   const critiqueOutputs = critiques.map((critique) => critique.output)
   const convergence = await runConvergence(
-    { input: sanitizedInput, roles, provider },
+    { input: sanitizedInput, roles, provider, providerMap },
     proposalOutputs,
     critiqueOutputs
   )
