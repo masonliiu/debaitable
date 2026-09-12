@@ -107,4 +107,29 @@ describe("RetryProvider", () => {
     assert.ok(elapsed >= 4, `expected elapsed >= 4ms but got ${elapsed}ms`)
     assert.equal(callCount, 3)
   })
+
+  it("aborts retries immediately when shouldRetry returns false", async () => {
+    let calls = 0
+    const fatalError = new Error("fatal: 400 Bad Request")
+    const inner: LlmProvider = {
+      generate: async () => {
+        calls++
+        throw fatalError
+      },
+    }
+    const provider = new RetryProvider(inner, {
+      maxAttempts: 3,
+      ...fastOptions,
+      shouldRetry: () => false,
+    })
+    await assert.rejects(
+      () => provider.generate(makeRequest()),
+      (err: Error) => {
+        assert.equal(err, fatalError)
+        return true
+      }
+    )
+    // Inner provider must be called exactly once — no retries
+    assert.equal(calls, 1)
+  })
 })
