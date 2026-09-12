@@ -27,6 +27,15 @@ export class RetryProvider implements LlmProvider {
     this.maxAttempts = options.maxAttempts ?? 3
     this.delayMs = options.delayMs ?? 200
     this.backoffFactor = options.backoffFactor ?? 2
+    if (!Number.isInteger(this.maxAttempts) || this.maxAttempts < 1) {
+      throw new RangeError("maxAttempts must be a positive integer")
+    }
+    if (!Number.isFinite(this.delayMs) || this.delayMs < 0) {
+      throw new RangeError("delayMs must be a non-negative finite number")
+    }
+    if (!Number.isFinite(this.backoffFactor) || this.backoffFactor < 1) {
+      throw new RangeError("backoffFactor must be a finite number greater than or equal to 1")
+    }
   }
 
   async generate<TSchema, TOutput>(

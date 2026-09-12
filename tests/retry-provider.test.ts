@@ -75,6 +75,13 @@ describe("RetryProvider", () => {
     assert.equal(calls, 1)
   })
 
+  it("rejects invalid retry options at construction", () => {
+    const inner: LlmProvider = { generate: async () => fakeResponse }
+    assert.throws(() => new RetryProvider(inner, { maxAttempts: 0 }), /positive integer/)
+    assert.throws(() => new RetryProvider(inner, { delayMs: -1 }), /non-negative/)
+    assert.throws(() => new RetryProvider(inner, { backoffFactor: 0.5 }), /greater than or equal to 1/)
+  })
+
   it("uses exponential backoff between attempts", async () => {
     const delays: number[] = []
     const originalSetTimeout = globalThis.setTimeout
