@@ -1,0 +1,39 @@
+{
+  "summary": "Adopt a remote-first work policy to expand talent access and reduce overhead.",
+  "rationale": "Strategic and execution analyses converge on net-positive outcomes. Cost savings from reducing office footprint offset investment in async tooling. Three of five roles voted to proceed.",
+  "tradeoffs": [
+    "Asynchronous communication reduces spontaneous collaboration.",
+    "Timezone distribution improves hiring range but complicates team scheduling.",
+    "Office cost savings are partially offset by home-office stipends and tooling budgets."
+  ],
+  "risks": [
+    "Erosion of team culture without intentional in-person rituals.",
+    "Legal and tax complexity when hiring across multiple jurisdictions.",
+    "Productivity variance for roles that benefit from in-person pairing."
+  ],
+  "actions": [
+    "Define and document remote-first norms and async communication protocols.",
+    "Audit roles for remote-compatibility and identify any on-site exceptions.",
+    "Establish a quarterly all-hands in-person gathering to maintain cohesion.",
+    "Engage employment counsel to address cross-region compliance requirements."
+  ],
+  "confidence": 0.72,
+  "minorityReport": "The Execution Planner notes that migration timeline estimates are optimistic; a phased 12-month rollout with per-team pilots is recommended before full adoption.",
+  "executiveDecision": {
+    "decision": "go",
+    "why": [
+      "Majority of roles support adoption with standard mitigations in place.",
+      "Cost modelling shows net-positive ROI within 18 months.",
+      "Competitive talent acquisition pressure makes delay costly."
+    ],
+    "topRisks": [
+      "Cross-jurisdiction legal and payroll complexity.",
+      "Long-term culture drift without structured in-person touchpoints."
+    ],
+    "topActions": [
+      "Publish remote-first handbook within 30 days.",
+      "Complete legal compliance audit before first cross-region hire."
+    ],
+    "stopGoCriteria": "Proceed if legal review completes within 60 days and a culture baseline survey shows >= 70% team readiness."
+  }
+}
