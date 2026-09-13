@@ -1,5 +1,5 @@
 import { LlmProvider } from "../ai"
-import { RoleKey } from "../core"
+import { DecisionRecord, RoleKey } from "../core"
 
 export type RoleProviderMap = Partial<Record<RoleKey, LlmProvider>>
 
@@ -37,3 +37,25 @@ export type ConvergenceOutput = {
  * - "confidence-weighted": Each role's vote is scaled by its confidence score.
  */
 export type ConsensusStrategy = "equal" | "confidence-weighted"
+
+/** Side-by-side view of a single role's contribution to the debate. */
+export type RoleComparison = {
+  roleKey: RoleKey
+  /** Model identifier that produced this role's outputs. */
+  model: string
+  vote: Vote
+  /** Raw proposal summary from Round 1. */
+  rawPosition: string
+  /** Rebuttals the role offered in Round 2 (points of agreement). */
+  agreements: string[]
+  /** Critiques raised + conditions from convergence (points of dissent). */
+  disagreements: string[]
+  /** Optional confidence weight carried from convergence output. */
+  confidence?: number
+}
+
+/** Structured side-by-side comparison artifact for a completed debate run. */
+export type ComparisonArtifact = {
+  roles: RoleComparison[]
+  finalConsensus: DecisionRecord
+}

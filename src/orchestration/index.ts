@@ -1,3 +1,4 @@
+export * from "./comparison"
 export * from "./constants"
 export * from "./compact"
 export * from "./guards"
