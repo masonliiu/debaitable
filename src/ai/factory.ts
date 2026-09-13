@@ -3,9 +3,10 @@ import { createGeminiProvider } from "./gemini-provider"
 import { HeuristicDebateProvider } from "./heuristic-provider"
 import { createOllamaProvider } from "./ollama-provider"
 import { createOpenAiProvider } from "./openai-provider"
+import { createOpenAiCompatibleProvider } from "./openai-compatible-provider"
 import { LlmProvider } from "./types"
 
-export type ProviderKind = "openai" | "anthropic" | "gemini" | "ollama" | "heuristic"
+export type ProviderKind = "openai" | "generic" | "openai-compatible" | "anthropic" | "gemini" | "ollama" | "heuristic"
 
 export const createProvider = (spec: string): LlmProvider => {
   const [rawKind, ...modelParts] = spec.trim().split(":")
@@ -13,6 +14,8 @@ export const createProvider = (spec: string): LlmProvider => {
   const model = modelParts.join(":") || undefined
   switch (kind) {
     case "openai": return createOpenAiProvider({ model })
+    case "generic":
+    case "openai-compatible": return createOpenAiCompatibleProvider({ model })
     case "anthropic": return createAnthropicProvider({ model })
     case "gemini": return createGeminiProvider({ model })
     case "ollama": return createOllamaProvider({ model })

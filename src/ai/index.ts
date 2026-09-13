@@ -1,5 +1,6 @@
 export * from "./schemas"
 export * from "./openai-provider"
+export * from "./openai-compatible-provider"
 export * from "./mock-provider"
 export * from "./heuristic-provider"
 export * from "./types"

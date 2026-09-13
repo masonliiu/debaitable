@@ -1,6 +1,6 @@
 import { afterEach, describe, it } from "node:test"
 import assert from "node:assert/strict"
-import { createAnthropicProvider, createGeminiProvider, createOllamaProvider, createProvider } from "../src/ai/index.js"
+import { createAnthropicProvider, createGeminiProvider, createOllamaProvider, createOpenAiCompatibleProvider, createProvider } from "../src/ai/index.js"
 
 const originalFetch = globalThis.fetch
 afterEach(() => { globalThis.fetch = originalFetch })
@@ -44,5 +44,30 @@ describe("production provider adapters", () => {
     assert.equal(body.stream, false)
     assert.equal(body.format, "json")
     assert.deepEqual(result.output, { answer: "ollama" })
+  })
+
+  it("formats OpenAI-compatible chat requests without requiring a cloud key", async () => {
+    let url = ""; let init: RequestInit | undefined
+    globalThis.fetch = async (input, options) => {
+      url = String(input); init = options
+      return new Response(JSON.stringify({ choices: [{ message: { content: '{"answer":"local"}' } }] }), { status: 200 })
+    }
+    const result = await createOpenAiCompatibleProvider({
+      baseUrl: "http://lm-studio.test/v1/", model: "qwen2.5-coder", maxTokens: 256,
+    }).generate(request)
+    assert.equal(url, "http://lm-studio.test/v1/chat/completions")
+    assert.equal((init?.headers as Record<string, string>)["Authorization"], undefined)
+    assert.deepEqual(JSON.parse(init?.body as string), {
+      model: "qwen2.5-coder", max_tokens: 256,
+      messages: [{ role: "system", content: "system" }, { role: "user", content: "prompt" }],
+    })
+    assert.deepEqual(result.output, { answer: "local" })
+  })
+
+  it("routes the generic factory alias and preserves colon-bearing model names", async () => {
+    globalThis.fetch = async () => new Response(
+      JSON.stringify({ choices: [{ message: { content: '{"answer":"factory"}' } }] }), { status: 200 })
+    const result = await createProvider("openai-compatible:qwen3:8b").generate(request)
+    assert.equal(result.model, "qwen3:8b")
   })
 })

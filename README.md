@@ -29,14 +29,24 @@ structured debate rounds and outputs a Decision Record plus an audit trail of al
 ### Assign different models to debate roles
 
 Set `DEBAITABLE_PROVIDER_<ROLE>` to `provider:model`. Omit `:model` to use the
-adapter default. Available providers are `openai`, `anthropic`, `gemini`,
-`ollama`, and `heuristic`.
+adapter default. Available providers are `openai`, `generic` (or
+`openai-compatible`), `anthropic`, `gemini`, `ollama`, and `heuristic`.
 
 ```bash
 export DEBAITABLE_PROVIDER_STRATEGIST="anthropic:claude-sonnet-4-6"
 export DEBAITABLE_PROVIDER_SKEPTIC="gemini:gemini-2.5-flash"
 export DEBAITABLE_PROVIDER_RISK_ANALYST="ollama:qwen3:8b"
 npm run cli
+```
+
+The `generic` adapter targets any OpenAI-compatible `/v1/chat/completions`
+server, including LM Studio, vLLM, llama.cpp, and compatible hosted gateways.
+It defaults to the local `http://127.0.0.1:1234/v1` endpoint and does not send an
+Authorization header unless `GENERIC_OPENAI_API_KEY` is set:
+
+```bash
+export GENERIC_OPENAI_BASE_URL="http://127.0.0.1:1234/v1"
+export DEBAITABLE_PROVIDER_STRATEGIST="generic:qwen2.5-coder"
 ```
 
 Cloud adapters read `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `GEMINI_API_KEY`.
