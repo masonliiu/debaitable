@@ -27,4 +27,13 @@ export type ConvergenceOutput = {
   vote: Vote
   reasons: string[]
   conditions: string[]
+  /** Optional confidence weight in [0, 1]. Defaults to 1 when absent. */
+  confidence?: number
 }
+
+/**
+ * Consensus strategy used when tallying convergence votes.
+ * - "equal": Each role's vote counts equally (one role, one vote).
+ * - "confidence-weighted": Each role's vote is scaled by its confidence score.
+ */
+export type ConsensusStrategy = "equal" | "confidence-weighted"
