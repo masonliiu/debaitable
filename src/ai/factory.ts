@@ -7,13 +7,16 @@ import { LlmProvider } from "./types"
 
 export type ProviderKind = "openai" | "anthropic" | "gemini" | "ollama" | "heuristic"
 
-export const createProvider = (kind: string): LlmProvider => {
-  switch (kind.trim().toLowerCase()) {
-    case "openai": return createOpenAiProvider()
-    case "anthropic": return createAnthropicProvider()
-    case "gemini": return createGeminiProvider()
-    case "ollama": return createOllamaProvider()
+export const createProvider = (spec: string): LlmProvider => {
+  const [rawKind, ...modelParts] = spec.trim().split(":")
+  const kind = rawKind.toLowerCase()
+  const model = modelParts.join(":") || undefined
+  switch (kind) {
+    case "openai": return createOpenAiProvider({ model })
+    case "anthropic": return createAnthropicProvider({ model })
+    case "gemini": return createGeminiProvider({ model })
+    case "ollama": return createOllamaProvider({ model })
     case "heuristic": return new HeuristicDebateProvider()
-    default: throw new Error(`Unsupported provider: ${kind}`)
+    default: throw new Error(`Unsupported provider: ${rawKind}`)
   }
 }

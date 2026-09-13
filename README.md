@@ -25,6 +25,25 @@ structured debate rounds and outputs a Decision Record plus an audit trail of al
 5. Final record and full round audit trail are stored and returned.
 
 ## Run It
+
+### Assign different models to debate roles
+
+Set `DEBAITABLE_PROVIDER_<ROLE>` to `provider:model`. Omit `:model` to use the
+adapter default. Available providers are `openai`, `anthropic`, `gemini`,
+`ollama`, and `heuristic`.
+
+```bash
+export DEBAITABLE_PROVIDER_STRATEGIST="anthropic:claude-sonnet-4-6"
+export DEBAITABLE_PROVIDER_SKEPTIC="gemini:gemini-2.5-flash"
+export DEBAITABLE_PROVIDER_RISK_ANALYST="ollama:qwen3:8b"
+npm run cli
+```
+
+Cloud adapters read `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `GEMINI_API_KEY`.
+Ollama defaults to `http://127.0.0.1:11434`; override it with
+`OLLAMA_BASE_URL`. Roles without an override use the provider selected in the
+TUI.
+
 1. Install dependencies:
    - `npm install`
 2. Optional environment:

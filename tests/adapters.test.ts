@@ -1,12 +1,19 @@
 import { afterEach, describe, it } from "node:test"
 import assert from "node:assert/strict"
-import { createAnthropicProvider, createGeminiProvider, createOllamaProvider } from "../src/ai/index.js"
+import { createAnthropicProvider, createGeminiProvider, createOllamaProvider, createProvider } from "../src/ai/index.js"
 
 const originalFetch = globalThis.fetch
 afterEach(() => { globalThis.fetch = originalFetch })
 const request = { system: "system", prompt: "prompt", schema: null }
 
 describe("production provider adapters", () => {
+  it("preserves colon-bearing model names in provider specs", async () => {
+    globalThis.fetch = async () => new Response(
+      JSON.stringify({ message: { content: '{"answer":"configured"}' } }), { status: 200 })
+    const result = await createProvider("ollama:qwen3:8b").generate(request)
+    assert.equal(result.model, "qwen3:8b")
+  })
+
   it("formats Anthropic Messages requests and parses content", async () => {
     let url = ""; let init: RequestInit | undefined
     globalThis.fetch = async (input, options) => { url = String(input); init = options; return new Response(
