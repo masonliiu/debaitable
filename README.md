@@ -44,6 +44,11 @@ Ollama defaults to `http://127.0.0.1:11434`; override it with
 `OLLAMA_BASE_URL`. Roles without an override use the provider selected in the
 TUI.
 
+Press `c` in the TUI to switch between equal voting and confidence-weighted
+consensus. Set `DEBAITABLE_CONSENSUS_STRATEGY=confidence-weighted` to make the
+weighted strategy the startup default. Every saved artifact records the chosen
+strategy.
+
 1. Install dependencies:
    - `npm install`
 2. Optional environment:
@@ -58,6 +63,7 @@ TUI.
      - Arrow keys move focus between prompt/history/output panes
      - `a` toggles audit timeline
      - `m` switches model mode (OpenAI/heuristic when API key is present)
+     - `c` switches equal/confidence-weighted consensus
      - `?` opens compact help
 5. Typecheck:
    - `npm run typecheck`

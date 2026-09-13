@@ -123,3 +123,10 @@ test("normalizeConvergenceOutput deduplicates reasons and trims whitespace", () 
     `schema rejected: ${!schemaResult.success ? JSON.stringify(schemaResult.error.issues) : ""}`
   )
 })
+
+test("normalizeConvergenceOutput preserves confidence for weighted consensus", () => {
+  const output = normalizeConvergenceOutput({
+    roleKey: "strategist", vote: "support", reasons: ["reason"], conditions: [], confidence: 0.35,
+  })
+  assert.equal(output.confidence, 0.35)
+})

@@ -1,5 +1,6 @@
 import { DecisionInput } from '../../core'
 import { getDecision } from '../../api'
+import { ConsensusStrategy } from '../../orchestration'
 
 export type RunState = 'idle' | 'running' | 'done' | 'error'
 
@@ -15,6 +16,7 @@ export type SessionHistoryItem = {
 
 export type TuiState = {
   mode: 'openai' | 'heuristic'
+  consensusStrategy: ConsensusStrategy
   runState: RunState
   showAudit: boolean
   showDetails: boolean
@@ -29,6 +31,8 @@ export type TuiState = {
 
 export const createInitialState = (mode: 'openai' | 'heuristic'): TuiState => ({
   mode,
+  consensusStrategy: process.env.DEBAITABLE_CONSENSUS_STRATEGY === 'confidence-weighted'
+    ? 'confidence-weighted' : 'equal',
   runState: 'idle',
   showAudit: false,
   showDetails: false,
@@ -39,5 +43,5 @@ export const createInitialState = (mode: 'openai' | 'heuristic'): TuiState => ({
   selectedHistoryIndex: 0,
   statusMessage: 'Ready.',
   commandHint:
-    'Enter run  i focus prompt  e guided edit  a audit  d details  m model  r rerun  [ ] history  tab focus  q quit',
+    'Enter run  i focus prompt  e guided edit  a audit  d details  m model  c consensus  r rerun  [ ] history  tab focus  q quit',
 })

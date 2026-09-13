@@ -1,13 +1,14 @@
 import { LlmProvider } from "../ai"
 import { DecisionInput, NotFoundError, RoleDefinition } from "../core"
 import { runDebate, RunDebateOptions } from "../orchestration"
-import { RoleProviderMap } from "../orchestration/types"
+import { ConsensusStrategy, RoleProviderMap } from "../orchestration/types"
 import { DecisionStore } from "../persistence"
 import { DecisionJobPayload } from "./types"
 
 export type DecisionJobContext = {
   provider: LlmProvider
   providerMap?: RoleProviderMap
+  consensusStrategy?: ConsensusStrategy
   store: DecisionStore
   roles: RoleDefinition[]
 }
@@ -48,6 +49,7 @@ export const runDecisionJob = async (
       roles: context.roles,
       provider: context.provider,
       providerMap: context.providerMap,
+      consensusStrategy: context.consensusStrategy,
     }
     const run = await runDebate(debateOptions)
     await context.store.saveDebateRounds(decision.id, run.rounds)

@@ -56,6 +56,7 @@ export const normalizeConvergenceOutput = (
   vote: output.vote,
   reasons: normalizeList(output.reasons, 5),
   conditions: normalizeList(output.conditions, 5),
+  confidence: output.confidence,
 })
 
 export const normalizeDecisionRecordOutput = (

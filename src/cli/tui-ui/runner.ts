@@ -4,7 +4,7 @@ import { createProvider, LlmProvider } from '../../ai'
 import { createDecision, getDecision } from '../../api'
 import { DecisionInput, RoleDefinition } from '../../core'
 import { MemoryDecisionQueue, runDecisionJob } from '../../jobs'
-import { RoleProviderMap } from '../../orchestration'
+import { ConsensusStrategy, RoleProviderMap } from '../../orchestration'
 import { buildStoredComparisonArtifact, ComparisonArtifact } from '../../orchestration'
 import { MemoryDecisionStore } from '../../persistence'
 
@@ -13,6 +13,7 @@ export type TuiSessionContext = {
   queue: MemoryDecisionQueue
   provider: LlmProvider
   roles: RoleDefinition[]
+  consensusStrategy: ConsensusStrategy
   runCounter: number
 }
 
@@ -21,6 +22,7 @@ export type DecisionArtifact = {
   decisionId: string
   input: DecisionInput
   status: string
+  consensusStrategy: ConsensusStrategy
   rounds: { roundIndex: number; roleKey: string; model: string; output: unknown }[]
   record: unknown
   comparison: ComparisonArtifact | null
@@ -49,13 +51,15 @@ const parseRoundOutput = (raw: string): unknown => {
 export const saveArtifact = async (
   input: DecisionInput,
   decisionId: string,
-  result: Awaited<ReturnType<typeof getDecision>>
+  result: Awaited<ReturnType<typeof getDecision>>,
+  consensusStrategy: ConsensusStrategy
 ): Promise<string> => {
   const artifact: DecisionArtifact = {
     generatedAt: new Date().toISOString(),
     decisionId,
     input,
     status: result.decision.status,
+    consensusStrategy,
     rounds: result.rounds.map((round) => ({
       roundIndex: round.roundIndex,
       roleKey: round.roleKey,
@@ -101,6 +105,7 @@ export const runDecisionPipeline = async (
     await runDecisionJob(payload, {
       provider: session.provider,
       providerMap,
+      consensusStrategy: session.consensusStrategy,
       store: session.store,
       roles: session.roles,
     })
@@ -108,7 +113,7 @@ export const runDecisionPipeline = async (
   }
 
   const result = await getDecision(created.decisionId, apiContext)
-  const artifactPath = await saveArtifact(input, created.decisionId, result)
+  const artifactPath = await saveArtifact(input, created.decisionId, result, session.consensusStrategy)
   onProgress(`Artifact saved: ${artifactPath}`)
 
   return {

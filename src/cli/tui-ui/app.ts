@@ -324,6 +324,7 @@ class DecisionTuiApp {
       queue: new MemoryDecisionQueue(),
       provider: this.makeProvider(defaultMode),
       roles: roleDefinitions,
+      consensusStrategy: this.state.consensusStrategy,
       runCounter: 0,
     }
 
@@ -544,7 +545,7 @@ class DecisionTuiApp {
   private renderFooterContent(): string {
     const mode = this.state.mode.toUpperCase()
     return [
-      ` Status: ${this.state.statusMessage} | Mode: ${mode}`,
+      ` Status: ${this.state.statusMessage} | Mode: ${mode} | Consensus: ${this.state.consensusStrategy}`,
       ' [?] Help  [Q] Quit',
     ].join('\n')
   }
@@ -852,6 +853,15 @@ class DecisionTuiApp {
       this.state.mode = next
       this.session.provider = this.makeProvider(next)
       this.setStatus(`Mode switched to ${next.toUpperCase()}.`)
+      this.render()
+    })
+
+    this.screen.key(['c'], () => {
+      if (this.isTypingInPrompt()) return
+      const next = this.state.consensusStrategy === 'equal' ? 'confidence-weighted' : 'equal'
+      this.state.consensusStrategy = next
+      this.session.consensusStrategy = next
+      this.setStatus(`Consensus strategy switched to ${next}.`)
       this.render()
     })
   }

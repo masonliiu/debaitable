@@ -26,7 +26,7 @@ import {
   serializeCritiqueOutput,
   serializeProposalOutput,
 } from "./serialize"
-import { ConvergenceOutput, CritiqueOutput, ProposalOutput, RoleProviderMap } from "./types"
+import { ConsensusStrategy, ConvergenceOutput, CritiqueOutput, ProposalOutput, RoleProviderMap } from "./types"
 import {
   parseConvergenceOutput,
   parseCritiqueOutput,
@@ -180,10 +180,11 @@ const runDecisionRecord = async (
   input: DecisionInput,
   proposals: ProposalOutput[],
   critiques: CritiqueOutput[],
-  convergence: ConvergenceOutput[]
+  convergence: ConvergenceOutput[],
+  consensusStrategy: ConsensusStrategy
 ) => {
   const fallback = normalizeDecisionRecordOutput(
-    synthesizeDecisionRecord(input, proposals, critiques, convergence)
+    synthesizeDecisionRecord(input, proposals, critiques, convergence, consensusStrategy)
   )
   assertDecisionRecordQuality(fallback)
   try {
@@ -198,9 +199,13 @@ const runDecisionRecord = async (
       prompt,
       schema: DecisionRecordSchema,
     })
-    const output = normalizeDecisionRecordOutput(
+    const generated = normalizeDecisionRecordOutput(
       parseDecisionRecord(response.output)
     )
+    const output = { ...generated, confidence: fallback.confidence,
+      minorityReport: fallback.minorityReport,
+      executiveDecision: { ...generated.executiveDecision,
+        decision: fallback.executiveDecision.decision } }
     assertDecisionRecordQuality(output)
     if (isLikelyOffTopic(input, output)) {
       throw new BadRequestError("Decision record relevance: output drifted from the input subject")
@@ -246,6 +251,7 @@ export type RunDebateOptions = {
   roles: RoleDefinition[]
   provider: LlmProvider
   providerMap?: RoleProviderMap
+  consensusStrategy?: ConsensusStrategy
 }
 
 export const runDebate = async ({
@@ -253,6 +259,7 @@ export const runDebate = async ({
   roles,
   provider,
   providerMap,
+  consensusStrategy = "equal",
 }: RunDebateOptions): Promise<DebateRun> => {
   assertValidRoles(roles)
   const sanitizedInput = sanitizeDecisionInput(input)
@@ -279,7 +286,8 @@ export const runDebate = async ({
     sanitizedInput,
     proposalOutputs,
     critiqueOutputs,
-    convergenceOutputs
+    convergenceOutputs,
+    consensusStrategy
   )
   const rounds = buildDebateRounds(proposals, critiques, convergence)
   return {

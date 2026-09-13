@@ -7,6 +7,7 @@ import {
   tallyVotesWeighted,
 } from "../src/orchestration/votes"
 import type { ConvergenceOutput } from "../src/orchestration/types"
+import { synthesizeDecisionRecord } from "../src/orchestration/synthesize"
 
 // ---------------------------------------------------------------------------
 // Shared fixtures
@@ -139,4 +140,19 @@ test("all-oppose scenario: support bucket is zero under both strategies", () => 
   assert.equal(weightedTally.support, 0)
   assert.equal(equalTally.oppose, 2)
   assert.ok(weightedTally.oppose > 0)
+})
+
+test("selected consensus strategy changes the synthesized executive decision", () => {
+  const convergence: ConvergenceOutput[] = [
+    { roleKey: "strategist", vote: "support", reasons: ["upside"], conditions: [], confidence: 0.1 },
+    { roleKey: "execution_planner", vote: "support", reasons: ["feasible"], conditions: [], confidence: 0.1 },
+    { roleKey: "skeptic", vote: "oppose", reasons: ["high-confidence risk"], conditions: [], confidence: 0.9 },
+  ]
+  const input = { title: "Launch", context: "Evaluate launch", goals: ["growth"], constraints: ["risk"], decisionType: "product" as const }
+  const equal = synthesizeDecisionRecord(input, [], [], convergence, "equal")
+  const weighted = synthesizeDecisionRecord(input, [], [], convergence, "confidence-weighted")
+  assert.equal(equal.executiveDecision.decision, "go")
+  assert.equal(weighted.executiveDecision.decision, "stop")
+  assert.match(equal.minorityReport, /high-confidence risk/)
+  assert.match(weighted.minorityReport, /high-confidence risk/)
 })
