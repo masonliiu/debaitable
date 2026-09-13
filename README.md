@@ -29,6 +29,7 @@ structured debate rounds and outputs a Decision Record plus an audit trail of al
 ## Documentation
 - [Architecture](docs/architecture.md) — orchestration, API, and persistence layers with Mermaid diagram.
 - [Configuration](docs/configuration.md) — provider assignments, environment variables, and consensus strategies.
+- [Limitations](docs/limitations.md) — real-world performance limitations of consensus vs. individual models.
 - Continuous integration runs `npm ci`, `npm run typecheck`, and `npm test` on push and pull requests via `.github/workflows/ci.yml`.
 
 ## Run It
@@ -84,6 +85,26 @@ strategy.
      - `?` opens compact help
 5. Typecheck:
    - `npm run typecheck`
+
+## Evaluation
+
+Run the reproducible multi-model evaluation (no API keys required):
+
+```bash
+npm run evaluate
+```
+
+The runner (`src/cli/evaluate.ts`) iterates over three real-world decision
+scenarios (product MVP launch, microservices migration, offshore hiring). For
+each scenario it captures individual per-role answers via
+`HeuristicDebateProvider`, runs the full multi-role consensus via
+`runDecisionJob`, validates every record with `DecisionRecordSchema`, and
+prints a Markdown comparison report (agreement / disagreement counts) to
+stdout.
+
+See [Limitations](docs/limitations.md) for published findings on where
+consensus dilutes dissent, when to prefer individual review, and what the
+heuristic suite does not claim.
 
 ## Install Methods For Users
 
