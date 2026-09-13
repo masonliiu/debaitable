@@ -5,6 +5,7 @@ import { createDecision, getDecision } from '../../api'
 import { DecisionInput, RoleDefinition } from '../../core'
 import { MemoryDecisionQueue, runDecisionJob } from '../../jobs'
 import { RoleProviderMap } from '../../orchestration'
+import { buildStoredComparisonArtifact, ComparisonArtifact } from '../../orchestration'
 import { MemoryDecisionStore } from '../../persistence'
 
 export type TuiSessionContext = {
@@ -22,6 +23,7 @@ export type DecisionArtifact = {
   status: string
   rounds: { roundIndex: number; roleKey: string; model: string; output: unknown }[]
   record: unknown
+  comparison: ComparisonArtifact | null
   runs: unknown[]
 }
 
@@ -61,6 +63,7 @@ export const saveArtifact = async (
       output: parseRoundOutput(round.output),
     })),
     record: result.record,
+    comparison: result.record ? buildStoredComparisonArtifact(result.rounds, result.record) : null,
     runs: result.runs,
   }
 

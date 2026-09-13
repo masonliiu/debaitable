@@ -25,6 +25,7 @@ export const ConvergenceOutputSchema = z.object({
   vote: VoteSchema,
   reasons: z.array(z.string().min(1)),
   conditions: z.array(z.string().min(1)),
+  confidence: z.number().min(0).max(1).optional(),
 })
 
 export const RoleComparisonSchema = z.object({

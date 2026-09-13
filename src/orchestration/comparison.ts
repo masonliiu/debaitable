@@ -1,4 +1,6 @@
+import { DebateRound, DecisionRecord } from "../core"
 import { ComparisonArtifact, RoleComparison } from "./types"
+import { ConvergenceOutputSchema, CritiqueOutputSchema, ProposalOutputSchema } from "./schemas"
 import { DebateRun } from "./run"
 
 /**
@@ -45,4 +47,38 @@ export const buildComparisonArtifact = (run: DebateRun): ComparisonArtifact => {
     roles,
     finalConsensus: run.decisionRecord.output,
   }
+}
+
+const decode = (raw: string): unknown => {
+  try { return JSON.parse(raw) } catch { return null }
+}
+
+/** Reconstruct a comparison from the durable round audit trail returned by the API. */
+export const buildStoredComparisonArtifact = (
+  rounds: DebateRound[], finalConsensus: DecisionRecord
+): ComparisonArtifact => {
+  const proposals = rounds.flatMap((round) => {
+    if (round.roundIndex !== 1) return []
+    const parsed = ProposalOutputSchema.safeParse(decode(round.output))
+    return parsed.success ? [{ ...parsed.data, model: round.model }] : []
+  })
+  const critiques = rounds.flatMap((round) => {
+    if (round.roundIndex !== 2) return []
+    const parsed = CritiqueOutputSchema.safeParse(decode(round.output))
+    return parsed.success ? [parsed.data] : []
+  })
+  const roles = rounds.flatMap((round): RoleComparison[] => {
+    if (round.roundIndex !== 3) return []
+    const parsed = ConvergenceOutputSchema.safeParse(decode(round.output))
+    if (!parsed.success) return []
+    const convergence = parsed.data
+    const proposal = proposals.find(item => item.roleKey === convergence.roleKey)
+    const critique = critiques.find(item => item.roleKey === convergence.roleKey)
+    return [{ roleKey: convergence.roleKey, model: round.model || proposal?.model || "unknown",
+      vote: convergence.vote, confidence: convergence.confidence,
+      rawPosition: proposal?.summary ?? "",
+      agreements: critique?.rebuttals ?? [],
+      disagreements: [...(critique?.critiques ?? []), ...convergence.conditions] }]
+  })
+  return { roles, finalConsensus }
 }

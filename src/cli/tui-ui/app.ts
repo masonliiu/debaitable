@@ -5,6 +5,7 @@ import { createOpenAiProvider, HeuristicDebateProvider, LlmProvider } from '../.
 import { roleDefinitions } from '../../core'
 import { MemoryDecisionQueue } from '../../jobs'
 import { MemoryDecisionStore } from '../../persistence'
+import { buildStoredComparisonArtifact } from '../../orchestration'
 import { buildInputFromSituation } from './input-parser'
 import { runDecisionPipeline, TuiSessionContext } from './runner'
 import { createInitialState, SessionHistoryItem, TuiState } from './state'
@@ -243,6 +244,21 @@ const renderResult = (state: TuiState): string => {
   lines.push('Top Actions:')
   for (const item of record.executiveDecision.topActions.slice(0, 4)) {
     lines.push(`- ${item}`)
+  }
+
+  const comparison = buildStoredComparisonArtifact(state.currentResult.rounds, record)
+  if (comparison.roles.length > 0) {
+    lines.push('')
+    lines.push('{bold}Model Comparison{/bold}')
+    for (const role of comparison.roles) {
+      const confidence = role.confidence === undefined ? '' : ` | ${Math.round(role.confidence * 100)}%`
+      lines.push(`${role.roleKey} | ${role.model} | ${role.vote.toUpperCase()}${confidence}`)
+      lines.push(`  ${trimForLine(role.rawPosition, 110)}`)
+      if (state.showDetails) {
+        for (const item of role.agreements) lines.push(`  + ${item}`)
+        for (const item of role.disagreements) lines.push(`  - ${item}`)
+      }
+    }
   }
 
   if (state.showDetails) {

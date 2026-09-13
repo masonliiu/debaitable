@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { buildComparisonArtifact } from "../src/orchestration/comparison"
+import { buildComparisonArtifact, buildStoredComparisonArtifact } from "../src/orchestration/comparison"
 import type { DebateRun } from "../src/orchestration/run"
 import type { DecisionRecord } from "../src/core/types"
 
@@ -203,4 +203,18 @@ test("buildComparisonArtifact propagates finalConsensus from the decision record
 test("buildComparisonArtifact produces one RoleComparison per convergence entry", () => {
   const artifact = buildComparisonArtifact(mockRun)
   assert.equal(artifact.roles.length, mockRun.convergence.length)
+})
+
+test("buildStoredComparisonArtifact reconstructs model positions from persisted rounds", () => {
+  const rounds = [
+    ...mockRun.proposals.map(item => ({ roundIndex: 1, roleKey: item.output.roleKey, model: item.model, output: JSON.stringify(item.output) })),
+    ...mockRun.critiques.map(item => ({ roundIndex: 2, roleKey: item.output.roleKey, model: item.model, output: JSON.stringify(item.output) })),
+    ...mockRun.convergence.map(item => ({ roundIndex: 3, roleKey: item.output.roleKey, model: item.model, output: JSON.stringify(item.output) })),
+  ]
+  const artifact = buildStoredComparisonArtifact(rounds, mockConsensus)
+  assert.equal(artifact.roles.length, 2)
+  assert.equal(artifact.roles[0].model, "model-alpha")
+  assert.equal(artifact.roles[1].vote, "oppose")
+  assert.match(artifact.roles[1].rawPosition, /data gaps/)
+  assert.deepEqual(artifact.finalConsensus, mockConsensus)
 })
