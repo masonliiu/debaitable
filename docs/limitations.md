@@ -10,25 +10,28 @@ the deterministic heuristic provider, not on live cloud-model benchmarks.
 Run the reproducible evaluation suite (no API keys required):
 
 ```bash
-npm run evaluate
+npm run eval-compare
 ```
 
-The runner (`src/cli/evaluate.ts`) iterates over three real-world decision
-scenarios:
+The runner (`src/evaluation/consensus-comparison.ts`) iterates over five fixed
+decision scenarios:
 
-- `scenario-product` — Launch mobile app MVP within 60 days
-- `scenario-engineering` — Migrate monolith to microservices
-- `scenario-hiring` — Hire offshore engineering team
+- `scenario-product-mvp` — Launch mobile app MVP within 60 days
+- `scenario-engineering-migration` — Migrate monolith to microservices
+- `scenario-hiring-offshore` — Hire offshore engineering team
+- `scenario-api-build-buy` — Build or buy an observability API
+- `scenario-security-rotation` — Rotate credentials after a suspected leak
 
 For each scenario it captures:
 
 1. Individual answers: one run per role (`strategist`, `skeptic`,
    `risk_analyst`, `execution_planner`, `cost_roi`) using
    `HeuristicDebateProvider`.
-2. Consensus answer: one full multi-role run via `runDecisionJob` with all
-   `roleDefinitions`, persisted as a `DecisionRecord`.
-3. Comparison: normalized `decision` agreement / disagreement counts plus a
-   Markdown report printed to stdout.
+2. Consensus answers: complete multi-role runs under both equal and
+   confidence-weighted vote strategies.
+3. Comparison: normalized decision agreement / disagreement counts, unique
+   individual mode, model identities, votes, confidence, minority reports,
+   and partial-failure notes. JSON and Markdown are emitted.
 
 All records are validated with `DecisionRecordSchema`. See
 `tests/evaluation.test.ts` for schema-validity, minority-report, and
@@ -47,18 +50,17 @@ fallback-recovery checks.
    The heuristic suite checks schema conformance, minority-report
    preservation, and deterministic recovery via `FallbackProvider`. It does
    not measure decision quality, business outcomes, or win-rate against
-domain
-experts. Do not interpret agreement counts as correctness.
+   domain experts. Do not interpret agreement counts as correctness.
 
 3. **Single-provider bias.**
    Reproducible runs use only `HeuristicDebateProvider`. Real deployments
    mix `openai`, `anthropic`, `gemini`, `ollama`, and `generic` adapters via
    `DEBAITABLE_PROVIDER_<ROLE>`. Cross-provider disagreement, latency, cost,
-   and failure modes are not represented in the default `npm run evaluate`
+   and failure modes are not represented in the default `npm run eval-compare`
    output.
 
 4. **Small, fixed scenario set.**
-   Three hand-written inputs cannot cover product, engineering, hiring,
+   Five hand-written inputs cannot cover product, engineering, hiring,
    legal, security, or financial edge cases. Constraints such as budget
    freezes, zero-downtime requirements, and timezone overlap are simplified.
    Results may not generalize.
@@ -102,5 +104,5 @@ experts. Do not interpret agreement counts as correctness.
 - Add opt-in cloud-model evaluation with recorded provider/model IDs,
   retries, and cost/latency columns.
 - Expand the scenario set and add human-rated decision-quality rubrics.
-- Emit machine-readable JSON reports (for example,
-  `artifacts/evaluation-report.json`) alongside the current Markdown stdout.
+- Add provider/model selection flags for opt-in live comparisons while keeping
+  the offline baseline unchanged.

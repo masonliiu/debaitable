@@ -1,8 +1,24 @@
 #!/usr/bin/env node
 
-import { runTui } from './tui'
+const args = process.argv.slice(2)
 
-runTui().catch((error: unknown) => {
-  console.error('CLI failed', error)
-  process.exitCode = 1
-})
+if (args[0] === 'eval-compare') {
+  const { runEvaluationCli } = await import('../evaluation/consensus-comparison')
+  try {
+    await runEvaluationCli(args.slice(1))
+  } catch (error: unknown) {
+    console.error(error instanceof Error ? error.message : error)
+    process.exitCode = 2
+  }
+} else {
+  const { runTui } = await import('./tui')
+
+  runTui().catch((error: unknown) => {
+    console.error('CLI failed', error)
+    process.exitCode = 1
+  })
+}
+
+// Keep this executable a module so top-level dynamic imports work under the
+// strict TypeScript configuration used by the package.
+export {}

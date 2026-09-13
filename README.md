@@ -88,23 +88,23 @@ strategy.
 
 ## Evaluation
 
-Run the reproducible multi-model evaluation (no API keys required):
+Run the reproducible single-model versus consensus evaluation (no API keys
+required):
 
 ```bash
-npm run evaluate
+npm run eval-compare
 ```
 
-The runner (`src/cli/evaluate.ts`) iterates over three real-world decision
-scenarios (product MVP launch, microservices migration, offshore hiring). For
-each scenario it captures individual per-role answers via
-`HeuristicDebateProvider`, runs the full multi-role consensus via
-`runDecisionJob`, validates every record with `DecisionRecordSchema`, and
-prints a Markdown comparison report (agreement / disagreement counts) to
-stdout.
+The runner (`src/evaluation/consensus-comparison.ts`) iterates over five fixed
+decision scenarios and compares single-role answers with equal-vote and
+confidence-weighted consensus. It validates every record with
+`DecisionRecordSchema`, preserves model identities, votes, confidence, minority
+reports, and partial failures, and writes both Markdown and JSON artifacts.
+Use `npm run eval-compare -- --strategy equal` to run one strategy.
 
-See [Limitations](docs/limitations.md) for published findings on where
-consensus dilutes dissent, when to prefer individual review, and what the
-heuristic suite does not claim.
+See [Evaluation](docs/evaluation.md) and [Limitations](docs/limitations.md) for
+the method, narrow win/tie/loss definition, and claims the heuristic suite does
+not make.
 
 ## Install Methods For Users
 
