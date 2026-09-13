@@ -1,5 +1,5 @@
 import { DecisionInput, DecisionRecord } from "../core"
-import { ConvergenceOutput, CritiqueOutput, ProposalOutput } from "./types"
+import { ConsensusStrategy, ConvergenceOutput, CritiqueOutput, ProposalOutput } from "./types"
 import { tallyVotes } from "./votes"
 
 const dedupe = (values: string[]): string[] => {
@@ -38,6 +38,12 @@ const buildRationale = (
   return reasons.join(" ")
 }
 
+/**
+ * Identifies dissenting roles (non-support votes) and assembles their
+ * objections into a minority report string. Dissenters are determined from the
+ * raw votes regardless of weighting strategy so that every dissenting voice is
+ * captured even when confidence-weighting reduces its numerical impact.
+ */
 const buildMinorityReport = (
   convergence: ConvergenceOutput[],
   critiques: CritiqueOutput[]
@@ -72,9 +78,10 @@ export const synthesizeDecisionRecord = (
   input: DecisionInput,
   proposals: ProposalOutput[],
   critiques: CritiqueOutput[],
-  convergence: ConvergenceOutput[]
+  convergence: ConvergenceOutput[],
+  consensusStrategy: ConsensusStrategy = "equal"
 ): DecisionRecord => {
-  const tally = tallyVotes(convergence)
+  const tally = tallyVotes(convergence, consensusStrategy)
   const recommendationLines = proposals.map((item) => item.recommendation)
   const summaryCandidates = take(dedupe(recommendationLines), 2)
   const summary =
