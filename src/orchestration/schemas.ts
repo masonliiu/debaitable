@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { RoleKeySchema } from "../core"
+import { DecisionRecordSchema, RoleKeySchema } from "../core"
 
 export const ProposalOutputSchema = z.object({
   roleKey: RoleKeySchema,
@@ -25,4 +25,19 @@ export const ConvergenceOutputSchema = z.object({
   vote: VoteSchema,
   reasons: z.array(z.string().min(1)),
   conditions: z.array(z.string().min(1)),
+})
+
+export const RoleComparisonSchema = z.object({
+  roleKey: RoleKeySchema,
+  model: z.string().min(1),
+  vote: VoteSchema,
+  rawPosition: z.string(),
+  agreements: z.array(z.string()),
+  disagreements: z.array(z.string()),
+  confidence: z.number().min(0).max(1).optional(),
+})
+
+export const ComparisonArtifactSchema = z.object({
+  roles: z.array(RoleComparisonSchema),
+  finalConsensus: DecisionRecordSchema,
 })
