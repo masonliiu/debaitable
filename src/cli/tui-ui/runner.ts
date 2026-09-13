@@ -1,9 +1,10 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { LlmProvider } from '../../ai'
+import { createProvider, LlmProvider } from '../../ai'
 import { createDecision, getDecision } from '../../api'
 import { DecisionInput, RoleDefinition } from '../../core'
 import { MemoryDecisionQueue, runDecisionJob } from '../../jobs'
+import { RoleProviderMap } from '../../orchestration'
 import { MemoryDecisionStore } from '../../persistence'
 
 export type TuiSessionContext = {
@@ -23,6 +24,17 @@ export type DecisionArtifact = {
   record: unknown
   runs: unknown[]
 }
+
+export const createRoleProviderMap = (
+  roles: RoleDefinition[],
+  env: NodeJS.ProcessEnv = process.env
+): RoleProviderMap => Object.fromEntries(
+  roles.flatMap((role) => {
+    const key = `DEBAITABLE_PROVIDER_${role.key.toUpperCase()}`
+    const kind = env[key]?.trim()
+    return kind ? [[role.key, createProvider(kind)]] : []
+  })
+) as RoleProviderMap
 
 const parseRoundOutput = (raw: string): unknown => {
   try {
@@ -80,10 +92,12 @@ export const runDecisionPipeline = async (
   session.queue.clear()
 
   onProgress(`Queued ${pending.length} job(s).`)
+  const providerMap = createRoleProviderMap(session.roles)
   for (const payload of pending) {
     onProgress(`Running ${payload.runId}...`)
     await runDecisionJob(payload, {
       provider: session.provider,
+      providerMap,
       store: session.store,
       roles: session.roles,
     })

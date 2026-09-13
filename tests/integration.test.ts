@@ -6,6 +6,7 @@ import { roleDefinitions } from "../src/core/roles.js"
 import { DecisionRecordSchema } from "../src/core/schemas.js"
 import { runDecisionJob } from "../src/jobs/run-decision.js"
 import { MemoryDecisionStore } from "../src/persistence/memory-store.js"
+import { createRoleProviderMap } from "../src/cli/tui-ui/runner.js"
 
 const SAMPLE_INPUT = {
   title: "Adopt remote-first policy",
@@ -16,6 +17,22 @@ const SAMPLE_INPUT = {
 }
 
 describe("Integration: full decision pipeline with HeuristicDebateProvider", () => {
+  it("constructs role-specific providers from CLI environment configuration", async () => {
+    const providerMap = createRoleProviderMap(roleDefinitions, {
+      DEBAITABLE_PROVIDER_STRATEGIST: "heuristic",
+      DEBAITABLE_PROVIDER_SKEPTIC: "heuristic",
+    })
+    assert.deepEqual(Object.keys(providerMap).sort(), ["skeptic", "strategist"])
+
+    const store = new MemoryDecisionStore()
+    const decision = await store.createDecision(SAMPLE_INPUT)
+    await runDecisionJob(
+      { decisionId: decision.id, runId: "run-configured" },
+      { provider: new HeuristicDebateProvider(), providerMap, store, roles: roleDefinitions }
+    )
+    assert.equal((await store.getDecision(decision.id))?.status, "succeeded")
+  })
+
   it("runs all three debate rounds and stores a valid DecisionRecord", async () => {
     const store = new MemoryDecisionStore()
     const provider = new HeuristicDebateProvider()
