@@ -1,5 +1,7 @@
 # DebAItable
 
+[![CI](https://github.com/masonliiu/debaitable/actions/workflows/ci.yml/badge.svg)](https://github.com/masonliiu/debaitable/actions/workflows/ci.yml)
+
 DebAItable is an artifact-first multi-agent decision engine. Instead of free-form chat, it runs
 structured debate rounds and outputs a Decision Record plus an audit trail of all role outputs.
 
@@ -23,6 +25,11 @@ structured debate rounds and outputs a Decision Record plus an audit trail of al
 3. Job runner executes orchestration rounds via role prompts.
 4. Outputs are schema-validated with Zod at each boundary.
 5. Final record and full round audit trail are stored and returned.
+
+## Documentation
+- [Architecture](docs/architecture.md) — orchestration, API, and persistence layers with Mermaid diagram.
+- [Configuration](docs/configuration.md) — provider assignments, environment variables, and consensus strategies.
+- Continuous integration runs `npm ci`, `npm run typecheck`, and `npm test` on push and pull requests via `.github/workflows/ci.yml`.
 
 ## Run It
 
