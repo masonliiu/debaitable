@@ -2,6 +2,21 @@ import { DecisionInput, DecisionRecord } from "../core"
 import { ConsensusStrategy, ConvergenceOutput, CritiqueOutput, ProposalOutput } from "./types"
 import { tallyVotes } from "./votes"
 
+/**
+ * Degraded-consensus synthesis.
+ *
+ * When one role provider times out or returns malformed JSON, the debate
+ * runner continues with surviving roles and calls `synthesizeDecisionRecord`
+ * with only those surviving proposals/critiques/convergence votes. This
+ * module never throws on partial or empty inputs: it falls back to
+ * deterministic summaries, preserves the minority report from surviving
+ * dissent, and scores confidence from surviving votes under both `equal`
+ * and `confidence-weighted` strategies. Callers record run status, failed
+ * role identity, error kind, retry count, and fallback use in the
+ * comparison artifact (see `comparison.ts`); synthesis stays total so the
+ * run is marked `degraded` instead of aborting.
+ */
+
 const dedupe = (values: string[]): string[] => {
   const seen = new Set<string>()
   const result: string[] = []
@@ -43,8 +58,12 @@ const buildRationale = (
  * objections into a minority report string. Dissenters are determined from the
  * raw votes regardless of weighting strategy so that every dissenting voice is
  * captured even when confidence-weighting reduces its numerical impact.
+ *
+ * Degraded runs: operates on surviving convergence/critiques only, so a
+ * failed role simply contributes no dissent here; its identity and error kind
+ * are recorded in the comparison artifact failures array instead.
  */
-const buildMinorityReport = (
+export const buildMinorityReport = (
   convergence: ConvergenceOutput[],
   critiques: CritiqueOutput[]
 ): string => {
@@ -59,7 +78,8 @@ const buildMinorityReport = (
   return lines.join(" ")
 }
 
-const scoreConfidence = (convergence: ConvergenceOutput[]): number => {
+/** Scores confidence from surviving convergence votes; total on empty input. */
+export const scoreConfidence = (convergence: ConvergenceOutput[]): number => {
   if (convergence.length === 0) {
     return 0.4
   }
@@ -74,6 +94,13 @@ const isBinaryQuestion = (context: string): boolean => {
   return /^(should|is|are|can|could|do|does|did|will|would)\b/.test(normalized)
 }
 
+/**
+ * Synthesizes a schema-valid DecisionRecord from surviving role outputs.
+ * Safe to call with partial arrays when some roles failed: summary,
+ * tradeoffs, risks, and actions fall back to deterministic defaults,
+ * confidence is scored from surviving votes, and the minority report is
+ * retained under both equal and confidence-weighted tallies.
+ */
 export const synthesizeDecisionRecord = (
   input: DecisionInput,
   proposals: ProposalOutput[],

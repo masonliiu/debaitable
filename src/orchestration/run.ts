@@ -26,7 +26,7 @@ import {
   serializeCritiqueOutput,
   serializeProposalOutput,
 } from "./serialize"
-import { ConsensusStrategy, ConvergenceOutput, CritiqueOutput, ProposalOutput, RoleProviderMap } from "./types"
+import { ConsensusStrategy, ConvergenceOutput, CritiqueOutput, PartialFailure, ProposalOutput, RoleProviderMap, RunStatus } from "./types"
 import {
   parseConvergenceOutput,
   parseCritiqueOutput,
@@ -54,6 +54,9 @@ export type DebateRun = {
   convergence: LlmCallResult<ConvergenceOutput>[]
   decisionRecord: LlmCallResult<DecisionRecord>
   rounds: DebateRound[]
+  status: RunStatus
+  failures: PartialFailure[]
+  consensusStrategy: ConsensusStrategy
 }
 
 type RoundContext = {
@@ -113,67 +116,178 @@ const isLikelyOffTopic = (input: DecisionInput, output: DecisionRecord): boolean
   return outputJargon >= 2 && subjectJargon === 0
 }
 
-const runProposals = async ({ input, roles, provider, providerMap }: RoundContext) =>
-  Promise.all(
+const providerIdentity = (role: RoleDefinition, provider: LlmProvider): { provider: string; model: string } => {
+  const anyProvider = provider as unknown as { name?: string; model?: string; providerName?: string }
+  const raw = provider as unknown as { constructor?: { name?: string } }
+  const providerName =
+    (typeof anyProvider.providerName === "string" && anyProvider.providerName) ||
+    (typeof anyProvider.name === "string" && anyProvider.name) ||
+    raw.constructor?.name ||
+    "provider"
+  const model = typeof anyProvider.model === "string" ? anyProvider.model : "unknown"
+  void role
+  return { provider: providerName, model }
+}
+
+const classifyError = (err: unknown): PartialFailure["kind"] => {
+  const message = err instanceof Error ? `${err.name}: ${err.message}` : String(err)
+  const lowered = message.toLowerCase()
+  if (lowered.includes("unauthorized") || lowered.includes("auth") || lowered.includes("401") || lowered.includes("403") || lowered.includes("api key")) {
+    return "auth"
+  }
+  if (lowered.includes("timeout") || lowered.includes("timed out") || lowered.includes("etimedout") || lowered.includes("abort")) {
+    return "timeout"
+  }
+  return "malformed"
+}
+
+const retryCountOf = (provider: LlmProvider): number => {
+  const anyProvider = provider as unknown as {
+    maxRetries?: unknown
+    maxAttempts?: unknown
+    retries?: unknown
+  }
+  if (typeof anyProvider.maxRetries === "number") return anyProvider.maxRetries
+  if (typeof anyProvider.maxAttempts === "number") return Math.max(0, anyProvider.maxAttempts - 1)
+  if (typeof anyProvider.retries === "number") return anyProvider.retries
+  return 0
+}
+
+type RoleSuccess<TOutput> = { ok: true; result: LlmCallResult<TOutput> }
+type RoleFailure = { ok: false; failure: PartialFailure }
+
+const runOneRole = async <TOutput>(
+  role: RoleDefinition,
+  roleProvider: LlmProvider,
+  attempt: () => Promise<LlmCallResult<TOutput>>
+): Promise<RoleSuccess<TOutput> | RoleFailure> => {
+  try {
+    const result = await attempt()
+    return { ok: true, result }
+  } catch (err) {
+    const identity = providerIdentity(role, roleProvider)
+    return {
+      ok: false,
+      failure: {
+        roleKey: role.key,
+        provider: identity.provider,
+        model: identity.model,
+        kind: classifyError(err),
+        retryCount: retryCountOf(roleProvider),
+        // A role that is omitted after an unrecovered failure did not receive
+        // a fallback answer. FallbackProvider wrappers can opt in explicitly
+        // with a runtime `fallbackUsed` flag when they preserve a role output.
+        fallbackUsed:
+          (roleProvider as unknown as { fallbackUsed?: unknown }).fallbackUsed === true,
+        // Keep only a bounded, single-line diagnostic. The full prompt/output
+        // is intentionally never persisted in a failure record.
+        message: (err instanceof Error ? err.message : String(err))
+          .replace(/[\r\n]+/g, " ")
+          .slice(0, 240),
+      },
+    }
+  }
+}
+
+const partitionSettled = <TOutput>(settled: (RoleSuccess<TOutput> | RoleFailure)[]): { results: LlmCallResult<TOutput>[]; failures: PartialFailure[] } => {
+  const results: LlmCallResult<TOutput>[] = []
+  const failures: PartialFailure[] = []
+  for (const item of settled) {
+    if (item.ok) results.push(item.result)
+    else failures.push(item.failure)
+  }
+  return { results, failures }
+}
+
+const runProposals = async ({ input, roles, provider, providerMap }: RoundContext) => {
+  const settled = await Promise.all(
     roles.map(async (role) => {
       const roleProvider = resolveProvider(role, provider, providerMap)
-      const { system, prompt } = buildProposalPrompt(role, input)
-      const response = await roleProvider.generate({
-        system,
-        prompt,
-        schema: ProposalOutputSchema,
+      return runOneRole<ProposalOutput>(role, roleProvider, async () => {
+        const { system, prompt } = buildProposalPrompt(role, input)
+        const response = await roleProvider.generate({
+          system,
+          prompt,
+          schema: ProposalOutputSchema,
+        })
+        const output = normalizeProposalOutput(parseProposalOutput(response.output))
+        ensureRoleKey(role.key, output.roleKey)
+        return { ...response, output }
       })
-      const output = normalizeProposalOutput(parseProposalOutput(response.output))
-      ensureRoleKey(role.key, output.roleKey)
-      return { ...response, output }
     })
   )
+  const { results, failures } = partitionSettled(settled)
+  if (results.length === 0) {
+    const detail = failures.at(-1)?.message
+    throw new BadRequestError(
+      `All role providers failed during proposals${detail ? `: ${detail}` : ""}`,
+    )
+  }
+  return { proposals: results, failures }
+}
 
 const runCritiques = async (
   { input, roles, provider, providerMap }: RoundContext,
-  proposals: ProposalOutput[]
-) =>
-  Promise.all(
-    roles.map(async (role) => {
+  proposals: ProposalOutput[],
+  survivingRoles: RoleDefinition[]
+) => {
+  const settled = await Promise.all(
+    survivingRoles.map(async (role) => {
       const roleProvider = resolveProvider(role, provider, providerMap)
-      const { system, prompt } = buildCritiquePrompt(role, input, proposals)
-      const response = await roleProvider.generate({
-        system,
-        prompt,
-        schema: CritiqueOutputSchema,
+      return runOneRole<CritiqueOutput>(role, roleProvider, async () => {
+        const { system, prompt } = buildCritiquePrompt(role, input, proposals)
+        const response = await roleProvider.generate({
+          system,
+          prompt,
+          schema: CritiqueOutputSchema,
+        })
+        const output = normalizeCritiqueOutput(parseCritiqueOutput(response.output))
+        ensureRoleKey(role.key, output.roleKey)
+        return { ...response, output }
       })
-      const output = normalizeCritiqueOutput(parseCritiqueOutput(response.output))
-      ensureRoleKey(role.key, output.roleKey)
-      return { ...response, output }
     })
   )
+  const { results, failures } = partitionSettled(settled)
+  if (results.length === 0) {
+    const detail = failures.at(-1)?.message
+    throw new BadRequestError(
+      `All role providers failed during critiques${detail ? `: ${detail}` : ""}`,
+    )
+  }
+  return { critiques: results, failures }
+}
 
 const runConvergence = async (
   { input, roles, provider, providerMap }: RoundContext,
   proposals: ProposalOutput[],
-  critiques: CritiqueOutput[]
-) =>
-  Promise.all(
-    roles.map(async (role) => {
+  critiques: CritiqueOutput[],
+  survivingRoles: RoleDefinition[]
+) => {
+  const settled = await Promise.all(
+    survivingRoles.map(async (role) => {
       const roleProvider = resolveProvider(role, provider, providerMap)
-      const { system, prompt } = buildConvergencePrompt(
-        role,
-        input,
-        proposals,
-        critiques
-      )
-      const response = await roleProvider.generate({
-        system,
-        prompt,
-        schema: ConvergenceOutputSchema,
+      return runOneRole<ConvergenceOutput>(role, roleProvider, async () => {
+        const { system, prompt } = buildConvergencePrompt(role, input, proposals, critiques)
+        const response = await roleProvider.generate({
+          system,
+          prompt,
+          schema: ConvergenceOutputSchema,
+        })
+        const output = normalizeConvergenceOutput(parseConvergenceOutput(response.output))
+        ensureRoleKey(role.key, output.roleKey)
+        return { ...response, output }
       })
-      const output = normalizeConvergenceOutput(
-        parseConvergenceOutput(response.output)
-      )
-      ensureRoleKey(role.key, output.roleKey)
-      return { ...response, output }
     })
   )
+  const { results, failures } = partitionSettled(settled)
+  if (results.length === 0) {
+    const detail = failures.at(-1)?.message
+    throw new BadRequestError(
+      `All role providers failed during convergence${detail ? `: ${detail}` : ""}`,
+    )
+  }
+  return { convergence: results, failures }
+}
 
 const runDecisionRecord = async (
   provider: LlmProvider,
@@ -263,24 +377,37 @@ export const runDebate = async ({
 }: RunDebateOptions): Promise<DebateRun> => {
   assertValidRoles(roles)
   const sanitizedInput = sanitizeDecisionInput(input)
-  const proposals = await runProposals({
+  const failures: PartialFailure[] = []
+  const proposalStep = await runProposals({
     input: sanitizedInput,
     roles,
     provider,
     providerMap,
   })
-  const proposalOutputs = proposals.map((proposal) => proposal.output)
-  const critiques = await runCritiques(
-    { input: sanitizedInput, roles, provider, providerMap },
-    proposalOutputs
-  )
-  const critiqueOutputs = critiques.map((critique) => critique.output)
-  const convergence = await runConvergence(
+  failures.push(...proposalStep.failures)
+  const proposals = proposalStep.proposals
+  const proposalOutputs = proposals.map((item) => item.output)
+  const failedProposalKeys = new Set(proposalStep.failures.map((f) => f.roleKey))
+  const afterProposalRoles = roles.filter((r) => !failedProposalKeys.has(r.key))
+  const critiqueStep = await runCritiques(
     { input: sanitizedInput, roles, provider, providerMap },
     proposalOutputs,
-    critiqueOutputs
+    afterProposalRoles
   )
-  const convergenceOutputs = convergence.map((result) => result.output)
+  failures.push(...critiqueStep.failures)
+  const critiques = critiqueStep.critiques
+  const critiqueOutputs = critiques.map((item) => item.output)
+  const failedCritiqueKeys = new Set(critiqueStep.failures.map((f) => f.roleKey))
+  const afterCritiqueRoles = afterProposalRoles.filter((r) => !failedCritiqueKeys.has(r.key))
+  const convergenceStep = await runConvergence(
+    { input: sanitizedInput, roles, provider, providerMap },
+    proposalOutputs,
+    critiqueOutputs,
+    afterCritiqueRoles
+  )
+  failures.push(...convergenceStep.failures)
+  const convergence = convergenceStep.convergence
+  const convergenceOutputs = convergence.map((item) => item.output)
   const decisionRecord = await runDecisionRecord(
     provider,
     sanitizedInput,
@@ -290,6 +417,7 @@ export const runDebate = async ({
     consensusStrategy
   )
   const rounds = buildDebateRounds(proposals, critiques, convergence)
+  const status: RunStatus = failures.length > 0 ? "degraded" : "ok"
   return {
     input: sanitizedInput,
     proposals,
@@ -297,5 +425,8 @@ export const runDebate = async ({
     convergence,
     decisionRecord,
     rounds,
+    status,
+    failures,
+    consensusStrategy,
   }
 }

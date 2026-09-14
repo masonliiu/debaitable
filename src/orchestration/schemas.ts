@@ -41,4 +41,16 @@ export const RoleComparisonSchema = z.object({
 export const ComparisonArtifactSchema = z.object({
   roles: z.array(RoleComparisonSchema),
   finalConsensus: DecisionRecordSchema,
+  // Optional so artifacts created before degraded-run telemetry remain valid.
+  status: z.enum(["ok", "degraded"]).optional(),
+  failures: z.array(z.object({
+    roleKey: z.string().min(1),
+    provider: z.string().min(1),
+    model: z.string().min(1),
+    kind: z.enum(["timeout", "malformed", "auth", "unknown"]),
+    retryCount: z.number().int().nonnegative(),
+    fallbackUsed: z.boolean(),
+    message: z.string().max(240).optional(),
+  })).optional(),
+  consensusStrategy: z.enum(["equal", "confidence-weighted"]).optional(),
 })

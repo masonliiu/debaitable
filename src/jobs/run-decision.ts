@@ -58,6 +58,11 @@ export const runDecisionJob = async (
       runId: payload.runId,
       decisionId: decision.id,
       status: "succeeded",
+      metadata: {
+        debateStatus: run.status,
+        failures: run.failures,
+        consensusStrategy: run.consensusStrategy,
+      },
     })
     await context.store.updateDecision(decision.id, {
       status: "succeeded",

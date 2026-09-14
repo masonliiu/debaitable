@@ -64,4 +64,20 @@ export type DecisionRun = {
   runId: string
   decisionId: string
   status: DecisionStatus
+  /** Optional debate-level telemetry persisted alongside the job status. */
+  metadata?: DecisionRunMetadata
+}
+
+export type DecisionRunMetadata = {
+  debateStatus?: "ok" | "degraded"
+  failures?: Array<{
+    roleKey: string
+    provider: string
+    model: string
+    kind: "timeout" | "malformed" | "auth" | "unknown"
+    retryCount: number
+    fallbackUsed: boolean
+    message?: string
+  }>
+  consensusStrategy?: "equal" | "confidence-weighted"
 }

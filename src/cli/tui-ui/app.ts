@@ -5,7 +5,12 @@ import { createOpenAiProvider, HeuristicDebateProvider, LlmProvider } from '../.
 import { roleDefinitions } from '../../core'
 import { MemoryDecisionQueue } from '../../jobs'
 import { MemoryDecisionStore } from '../../persistence'
-import { buildStoredComparisonArtifact } from '../../orchestration'
+import {
+  buildStoredComparisonArtifact,
+  ConsensusStrategy,
+  PartialFailure,
+  RunStatus,
+} from '../../orchestration'
 import { buildInputFromSituation } from './input-parser'
 import { runDecisionPipeline, TuiSessionContext } from './runner'
 import { createInitialState, SessionHistoryItem, TuiState } from './state'
@@ -246,7 +251,26 @@ const renderResult = (state: TuiState): string => {
     lines.push(`- ${item}`)
   }
 
-  const comparison = buildStoredComparisonArtifact(state.currentResult.rounds, record)
+  const latestRun = [...state.currentResult.runs].reverse().find((run) => run.status === 'succeeded')
+  const metadata = latestRun?.metadata
+  const comparison = buildStoredComparisonArtifact(
+    state.currentResult.rounds,
+    record,
+    metadata
+      ? {
+          status: metadata.debateStatus as RunStatus | undefined,
+          failures: metadata.failures as PartialFailure[] | undefined,
+          consensusStrategy: metadata.consensusStrategy as ConsensusStrategy | undefined,
+        }
+      : undefined,
+  )
+  if (comparison.status === 'degraded') {
+    lines.push('')
+    lines.push('{bold}{yellow-fg}DEGRADED RUN{/yellow-fg}{/bold} — surviving roles synthesized a decision.')
+    for (const failure of comparison.failures ?? []) {
+      lines.push(`! ${failure.roleKey} | ${failure.provider}:${failure.model} | ${failure.kind} | retries=${failure.retryCount}`)
+    }
+  }
   if (comparison.roles.length > 0) {
     lines.push('')
     lines.push('{bold}Model Comparison{/bold}')

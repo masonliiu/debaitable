@@ -1,7 +1,17 @@
 import { DebateRound, DecisionRecord } from "../core"
-import { ComparisonArtifact, RoleComparison } from "./types"
+import { ComparisonArtifact, ConsensusStrategy, PartialFailure, RoleComparison, RunStatus } from "./types"
 import { ConvergenceOutputSchema, CritiqueOutputSchema, ProposalOutputSchema } from "./schemas"
 import { DebateRun } from "./run"
+
+/** Optional degraded-run metadata carried on DebateRun once per-role recovery lands. */
+type DegradedRunMeta = {
+  status?: RunStatus
+  failures?: PartialFailure[]
+  consensusStrategy?: ConsensusStrategy
+}
+
+/** Optional overrides when reconstructing from the durable round audit trail. */
+type StoredComparisonOptions = DegradedRunMeta
 
 /**
  * Builds a side-by-side comparison artifact from a completed debate run.
@@ -12,8 +22,17 @@ import { DebateRun } from "./run"
  * - vote and confidence (from convergence output)
  * - agreements (rebuttals offered in Round 2 critique)
  * - disagreements (critiques raised in Round 2 + conditions from convergence)
+ *
+ * Degraded runs: when `run` carries `status`/`failures`/`consensusStrategy`
+ * (see `PartialFailure` in `./types`), they are copied through so the saved
+ * artifact records run status, failed role identity with provider:model,
+ * error kind, retry count, fallback use, and the strategy used for surviving
+ * votes. Absent fields default to `{ status: "ok", failures: [],
+ * consensusStrategy: "equal" }` for backward compatibility.
  */
-export const buildComparisonArtifact = (run: DebateRun): ComparisonArtifact => {
+export const buildComparisonArtifact = (
+  run: DebateRun & DegradedRunMeta
+): ComparisonArtifact => {
   const roles: RoleComparison[] = run.convergence.map((conv) => {
     const roleKey = conv.output.roleKey
 
@@ -43,9 +62,16 @@ export const buildComparisonArtifact = (run: DebateRun): ComparisonArtifact => {
     }
   })
 
+  const failures = run.failures ?? []
+  const status: RunStatus = run.status ?? (failures.length > 0 ? "degraded" : "ok")
+  const consensusStrategy: ConsensusStrategy = run.consensusStrategy ?? "equal"
+
   return {
     roles,
     finalConsensus: run.decisionRecord.output,
+    status,
+    failures,
+    consensusStrategy,
   }
 }
 
@@ -55,7 +81,7 @@ const decode = (raw: string): unknown => {
 
 /** Reconstruct a comparison from the durable round audit trail returned by the API. */
 export const buildStoredComparisonArtifact = (
-  rounds: DebateRound[], finalConsensus: DecisionRecord
+  rounds: DebateRound[], finalConsensus: DecisionRecord, opts?: StoredComparisonOptions
 ): ComparisonArtifact => {
   const proposals = rounds.flatMap((round) => {
     if (round.roundIndex !== 1) return []
@@ -80,5 +106,8 @@ export const buildStoredComparisonArtifact = (
       agreements: critique?.rebuttals ?? [],
       disagreements: [...(critique?.critiques ?? []), ...convergence.conditions] }]
   })
-  return { roles, finalConsensus }
+  const failures = opts?.failures ?? []
+  const status: RunStatus = opts?.status ?? (failures.length > 0 ? "degraded" : "ok")
+  const consensusStrategy: ConsensusStrategy = opts?.consensusStrategy ?? "equal"
+  return { roles, finalConsensus, status, failures, consensusStrategy }
 }

@@ -78,10 +78,13 @@ fallback-recovery checks.
    different rationales with the same label count as agreement.
 
 7. **Failure handling favors availability over fidelity.**
-   When the primary provider fails, `FallbackProvider` substitutes the next
-   provider to guarantee a schema-valid `DecisionRecord`. This improves
-   operational recovery but can mask upstream outages in the final artifact
-   if callers do not inspect run metadata.
+   When one role adapter fails, the runner can finish a degraded consensus
+   from surviving roles. The saved run metadata and comparison artifact record
+   the failed role, provider/model identity, classified error kind (`timeout`,
+   `malformed`, `auth`, or `unknown`), retry count, fallback usage, and the
+   selected strategy. The TUI renders a degraded banner. This is transparent,
+   but it does not recover the failed role's missing evidence; if every role in
+   a round fails, the job fails instead of inventing votes.
 
 ## When to prefer individual review over consensus
 
