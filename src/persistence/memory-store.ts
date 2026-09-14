@@ -27,7 +27,18 @@ const cloneDecision = (decision: Decision): Decision => ({
 const cloneRounds = (rounds: DebateRound[]): DebateRound[] =>
   rounds.map((round) => ({ ...round }))
 
-const cloneRun = (run: DecisionRun): DecisionRun => ({ ...run })
+const cloneRun = (run: DecisionRun): DecisionRun => {
+  if (!run.metadata) {
+    return { ...run }
+  }
+  return {
+    ...run,
+    metadata: {
+      ...run.metadata,
+      failures: run.metadata.failures?.map((failure) => ({ ...failure })),
+    },
+  }
+}
 
 export class MemoryDecisionStore implements DecisionStore {
   private state: MemoryState

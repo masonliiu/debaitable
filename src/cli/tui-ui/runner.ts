@@ -4,7 +4,7 @@ import { createProvider, LlmProvider } from '../../ai'
 import { createDecision, getDecision } from '../../api'
 import { DecisionInput, RoleDefinition } from '../../core'
 import { MemoryDecisionQueue, runDecisionJob } from '../../jobs'
-import { ConsensusStrategy, RoleProviderMap } from '../../orchestration'
+import { ConsensusStrategy, PartialFailure, RoleProviderMap, RunStatus } from '../../orchestration'
 import { buildStoredComparisonArtifact, ComparisonArtifact } from '../../orchestration'
 import { MemoryDecisionStore } from '../../persistence'
 
@@ -54,6 +54,15 @@ export const saveArtifact = async (
   result: Awaited<ReturnType<typeof getDecision>>,
   consensusStrategy: ConsensusStrategy
 ): Promise<string> => {
+  const latestRun = [...result.runs].reverse().find((run) => run.status === 'succeeded')
+  const metadata = latestRun?.metadata
+  const comparisonOptions = metadata
+    ? {
+        status: metadata.debateStatus as RunStatus | undefined,
+        failures: metadata.failures as PartialFailure[] | undefined,
+        consensusStrategy: metadata.consensusStrategy as ConsensusStrategy | undefined,
+      }
+    : undefined
   const artifact: DecisionArtifact = {
     generatedAt: new Date().toISOString(),
     decisionId,
@@ -67,7 +76,9 @@ export const saveArtifact = async (
       output: parseRoundOutput(round.output),
     })),
     record: result.record,
-    comparison: result.record ? buildStoredComparisonArtifact(result.rounds, result.record) : null,
+    comparison: result.record
+      ? buildStoredComparisonArtifact(result.rounds, result.record, comparisonOptions)
+      : null,
     runs: result.runs,
   }
 

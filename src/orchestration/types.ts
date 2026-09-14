@@ -58,4 +58,45 @@ export type RoleComparison = {
 export type ComparisonArtifact = {
   roles: RoleComparison[]
   finalConsensus: DecisionRecord
+  /** Run status: "ok" when all roles succeeded, "degraded" when any role failed but surviving roles still produced a record. Defaults to "ok" when absent for backward compatibility. */
+  status?: RunStatus
+  /** Per-role provider failures recovered via retry/fallback or skipped. Empty when status is "ok". */
+  failures?: PartialFailure[]
+  /** Consensus strategy used to tally surviving votes. */
+  consensusStrategy?: ConsensusStrategy
+}
+
+/**
+ * Overall debate run status.
+ * - "ok": all roles completed without unrecovered errors.
+ * - "degraded": at least one role failed (timeout, malformed JSON, auth)
+ *   but surviving roles still produced a schema-valid DecisionRecord.
+ */
+export type RunStatus = "ok" | "degraded"
+
+/** Classified per-role provider error kind for degraded-run reporting. */
+export type FailureKind = "timeout" | "malformed" | "auth" | "unknown"
+
+/** Alias kept for readability at call sites that prefer the longer name. */
+export type PartialFailureKind = FailureKind
+
+/**
+ * Traceable record of a single role provider failure that did not abort the run.
+ * Identity is kept as provider + model ("provider:model") alongside the role key
+ * so saved artifacts and the TUI can list exactly which role failed and how it recovered.
+ */
+export type PartialFailure = {
+  roleKey: RoleKey
+  /** Provider adapter name (e.g. "openai", "anthropic", "heuristic"). */
+  provider: string
+  /** Model identifier reported by the provider, or "unknown" when unavailable. */
+  model: string
+  /** Classified error kind: timeout vs malformed vs auth (vs unknown). */
+  kind: FailureKind
+  /** Number of retries attempted via the existing RetryProvider path before giving up or recovering. */
+  retryCount: number
+  /** Whether a fallback provider output was used for this role. */
+  fallbackUsed: boolean
+  /** Short sanitized error message without secrets or raw prompt content. */
+  message?: string
 }

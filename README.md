@@ -26,6 +26,13 @@ structured debate rounds and outputs a Decision Record plus an audit trail of al
 4. Outputs are schema-validated with Zod at each boundary.
 5. Final record and full round audit trail are stored and returned.
 
+When one role adapter times out, returns malformed data, or is unauthorized,
+the runner isolates that role and continues with the surviving roles. A
+completed degraded run is marked with `debateStatus: "degraded"` and persists
+the failed `roleKey`, `provider`, `model`, error `kind`, retry count, fallback
+usage, and the selected consensus strategy in run metadata. If every role in a
+round fails, the job fails explicitly instead of manufacturing a consensus.
+
 ## Documentation
 - [Architecture](docs/architecture.md) — orchestration, API, and persistence layers with Mermaid diagram.
 - [Configuration](docs/configuration.md) — provider assignments, environment variables, and consensus strategies.
@@ -81,7 +88,10 @@ strategy.
      - Arrow keys move focus between prompt/history/output panes
      - `a` toggles audit timeline
      - `m` switches model mode (OpenAI/heuristic when API key is present)
-     - `c` switches equal/confidence-weighted consensus
+   - `c` switches equal/confidence-weighted consensus
+     - A degraded result is labeled in the output pane with each failed role
+       and error kind; surviving positions and the minority report remain
+       visible.
      - `?` opens compact help
 5. Typecheck:
    - `npm run typecheck`
