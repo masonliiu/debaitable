@@ -130,6 +130,28 @@ curl http://localhost:3000/decisions/<decisionId>
 
 Endpoints: `POST /decisions`, `GET /decisions/:id`, `GET /health`.
 
+### Durable microservice storage (`DEBAITABLE_DATA_DIR`)
+
+By default the microservice above uses `MemoryStore` and `MemoryQueue`, so all
+decisions and queued jobs are lost on restart. Set `DEBAITABLE_DATA_DIR` to
+run durably with filesystem-backed `FsStore` (`FsDecisionStore`) and `FsQueue`
+(`FsDecisionQueue`):
+
+```bash
+export DEBAITABLE_DATA_DIR="./data"
+npm run serve
+```
+
+```bash
+DEBAITABLE_DATA_DIR=/var/lib/debaitable npm run serve -- --port 4001
+```
+
+When set, `DecisionRecord` objects, decisions, rounds, and job payloads/states
+(`queued`, `active`, `completed`, `failed`) are saved as JSON files under that
+directory, so state survives server restarts. On startup `FsQueue` detects jobs
+left in `active` from a crashed run and requeues them, so no job stays stuck.
+See [Configuration](docs/configuration.md) for details.
+
 ## Evaluation
 
 Run the reproducible single-model versus consensus evaluation (no API keys

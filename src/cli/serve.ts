@@ -1,9 +1,7 @@
 import { createServer, IncomingMessage, ServerResponse, Server } from "node:http"
 import { randomUUID } from "node:crypto"
 import { handleCreateDecision, handleGetDecision } from "../api/handlers.js"
-import { ApiContext } from "../api/service.js"
-import { MemoryDecisionStore } from "../persistence/memory-store.js"
-import { MemoryDecisionQueue } from "../jobs/memory-queue.js"
+import { ApiContext, makeApiContext } from "../api/service.js"
 
 export type ServeOptions = {
   port: number
@@ -27,14 +25,6 @@ export function parseServeArgs(args: string[]): ServeOptions {
     }
   }
   return { port }
-}
-
-function makeContext(): ApiContext {
-  return {
-    store: new MemoryDecisionStore(),
-    queue: new MemoryDecisionQueue(),
-    generateRunId: () => randomUUID(),
-  }
 }
 
 async function readBody(req: IncomingMessage): Promise<unknown> {
@@ -69,10 +59,14 @@ function send(
 /**
  * Start the HTTP API server. Returns the listening Server instance so callers
  * (including tests) can close it when done.
+ *
+ * When DEBAITABLE_DATA_DIR is set the server uses filesystem-backed
+ * FsDecisionStore and FsDecisionQueue so state survives process restarts.
+ * Otherwise it falls back to in-memory implementations.
  */
 export async function runServe(args: string[] = []): Promise<Server> {
   const options = parseServeArgs(args)
-  const context = makeContext()
+  const context: ApiContext = await makeApiContext(() => randomUUID())
 
   const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
     const url = req.url ?? "/"

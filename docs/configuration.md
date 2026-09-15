@@ -68,12 +68,36 @@ All adapter outputs are validated with Zod (`src/ai/schemas.ts`, `src/ai/validat
 | `OLLAMA_MODEL` | Default model for the `ollama` adapter. | adapter default |
 | `DEBAITABLE_PROVIDER_<ROLE>` | Per-role `provider[:model]` assignment (see above). | TUI selection |
 | `DEBAITABLE_CONSENSUS_STRATEGY` | Default consensus strategy: `equal` or `confidence-weighted`. | `equal` |
+| `DEBAITABLE_DATA_DIR` | Directory path for durable filesystem persistence (`FsStore`) and queue (`FsQueue`). If unset, in-memory implementations are used. | _(unset)_ |
 
 Notes:
 
 - Secrets must only be provided via environment variables; never commit keys or tokens.
 - Cloud adapters require their respective `*_API_KEY`; local adapters (`heuristic`, `ollama`, `generic` against localhost) work without keys.
 - User decision input is sanitized (`src/core/sanitize.ts`) before prompt injection. Avoid storing raw prompt content; minimal PII is persisted.
+- Setting `DEBAITABLE_DATA_DIR` enables state recovery across server restarts for the HTTP API microservice.
+
+## Durable Microservice Storage (`DEBAITABLE_DATA_DIR`)
+
+By default, the HTTP API microservice (`npm run serve`) uses in-memory state (`MemoryStore` and `MemoryQueue`), so decisions and queue jobs are lost when the server restarts.
+
+Setting `DEBAITABLE_DATA_DIR` enables durable filesystem-backed persistence:
+
+```bash
+export DEBAITABLE_DATA_DIR="./data"
+npm run serve
+```
+
+When configured:
+- **`FsStore` (`FsDecisionStore`)**: Durably saves and retrieves `DecisionRecord` objects, decisions, rounds, and run metadata as JSON files on disk.
+- **`FsQueue` (`FsDecisionQueue`)**: Tracks job payloads and states (`queued`, `active`, `completed`, `failed`) on disk.
+- **Crash Recovery**: On startup, `FsQueue` detects jobs left in the `active` state from a previous crashed run and automatically recovers them (requeuing or marking as failed), ensuring no jobs are permanently lost or stuck.
+
+Example running on a custom port with persistent storage:
+
+```bash
+DEBAITABLE_DATA_DIR=/var/lib/debaitable npm run serve -- --port 4001
+```
 
 ## Consensus Strategies
 
