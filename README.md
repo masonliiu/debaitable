@@ -1,6 +1,7 @@
 # DebAItable
 
 [![CI](https://github.com/masonliiu/debaitable/actions/workflows/ci.yml/badge.svg)](https://github.com/masonliiu/debaitable/actions/workflows/ci.yml)
+[![Release](https://github.com/masonliiu/debaitable/actions/workflows/release.yml/badge.svg)](https://github.com/masonliiu/debaitable/actions/workflows/release.yml)
 
 DebAItable is an artifact-first multi-agent decision engine. Instead of free-form chat, it runs
 structured debate rounds and outputs a Decision Record plus an audit trail of all role outputs.
@@ -38,6 +39,7 @@ round fails, the job fails explicitly instead of manufacturing a consensus.
 - [Configuration](docs/configuration.md) — provider assignments, environment variables, and consensus strategies.
 - [Limitations](docs/limitations.md) — real-world performance limitations of consensus vs. individual models.
 - Continuous integration runs `npm ci`, `npm run typecheck`, and `npm test` on push and pull requests via `.github/workflows/ci.yml`.
+- Automated releases are published to NPM and GitHub Releases when a `v*` tag is pushed, via `.github/workflows/release.yml`.
 
 ## Run It
 
@@ -174,6 +176,12 @@ not make.
 
 ## Install Methods For Users
 
+Releases are published automatically to [NPM](https://www.npmjs.com/package/debaitable)
+and [GitHub Releases](https://github.com/masonliiu/debaitable/releases) whenever a
+semantic version tag (e.g. `v1.2.3`) is pushed. The release workflow runs a full
+build, typecheck, and test suite before publishing, so every tagged release is
+verified stable.
+
 ### 1) npm global install
 1. Install:
    - `npm i -g debaitable`
@@ -200,6 +208,9 @@ This installs `debaitable` globally with npm and prints PATH instructions if nee
 
 Note:
 - `brew install debaitable` without tapping works only after acceptance into `homebrew-core`.
+- After each automated NPM release, update the Homebrew formula's `url` and `sha256` to point
+  to the new versioned tarball. See [docs/homebrew-core-submission.md](docs/homebrew-core-submission.md)
+  for the full submission checklist.
 
 ### 5) Homebrew core install (future)
 - Target command after merge to core:
