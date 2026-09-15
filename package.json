@@ -4,15 +4,28 @@
   "description": "Terminal-based multi-role debate engine for structured decisions.",
   "license": "MIT",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/masonliiu/debaitable.git"
+  },
+  "homepage": "https://github.com/masonliiu/debaitable#readme",
+  "bugs": {
+    "url": "https://github.com/masonliiu/debaitable/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "bin": {
     "debaitable": "dist/main.js"
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
   },
   "scripts": {
     "dev": "tsx src/dev.ts",
