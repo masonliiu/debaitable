@@ -1,6 +1,6 @@
 import { DEFAULT_VISIBILITY, NotFoundError, sanitizeDecisionInput } from "../core"
-import { DecisionQueue } from "../jobs"
-import { DecisionStore } from "../persistence"
+import { DecisionQueue, FsDecisionQueue, MemoryDecisionQueue } from "../jobs"
+import { DecisionStore, FsDecisionStore, MemoryDecisionStore } from "../persistence"
 import {
   CreateDecisionRequest,
   CreateDecisionResponse,
@@ -12,6 +12,30 @@ export type ApiContext = {
   store: DecisionStore
   queue: DecisionQueue
   generateRunId: () => string
+}
+
+/**
+ * Build an ApiContext backed by the filesystem when DEBAITABLE_DATA_DIR is set,
+ * or by in-memory implementations otherwise.
+ *
+ * When DEBAITABLE_DATA_DIR is provided both FsDecisionStore and FsDecisionQueue
+ * are initialised (creating the directory and recovering any crashed jobs) before
+ * the context is returned, so the caller never needs to call init() separately.
+ */
+export async function makeApiContext(generateRunId: () => string): Promise<ApiContext> {
+  const dataDir = process.env.DEBAITABLE_DATA_DIR?.trim()
+  if (dataDir) {
+    const store = new FsDecisionStore(dataDir)
+    const queue = new FsDecisionQueue(dataDir)
+    await store.init()
+    await queue.init()
+    return { store, queue, generateRunId }
+  }
+  return {
+    store: new MemoryDecisionStore(),
+    queue: new MemoryDecisionQueue(),
+    generateRunId,
+  }
 }
 
 export const createDecision = async (

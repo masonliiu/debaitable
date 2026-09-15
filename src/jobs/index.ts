@@ -1,5 +1,6 @@
 export * from "./schemas"
 export * from "./queue"
 export * from "./memory-queue"
+export * from "./fs-queue"
 export * from "./run-decision"
 export * from "./types"
