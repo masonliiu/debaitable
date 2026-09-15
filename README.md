@@ -96,6 +96,40 @@ strategy.
 5. Typecheck:
    - `npm run typecheck`
 
+### Serve the HTTP API as a microservice
+
+Start the HTTP API server backed by `src/api/http.ts` and `src/api/service.ts`
+(in-memory store and queue by default):
+
+```bash
+npm run serve
+npm run serve -- --port 4001
+node dist/main.js serve --port 4001
+```
+
+Port options (default `3000`):
+
+- `npm run serve -- --port 4001`
+- `npm run serve -- -p 4001`
+- `npm run serve -- --port=4001`
+
+Submit a decision payload to the local endpoint:
+
+```bash
+curl -X POST http://localhost:3000/decisions \
+  -H 'Content-Type: application/json' \
+  -d '{"input":{"question":"Should we expand to the EU market?"}}'
+```
+
+Fetch the decision and check health:
+
+```bash
+curl http://localhost:3000/health
+curl http://localhost:3000/decisions/<decisionId>
+```
+
+Endpoints: `POST /decisions`, `GET /decisions/:id`, `GET /health`.
+
 ## Evaluation
 
 Run the reproducible single-model versus consensus evaluation (no API keys

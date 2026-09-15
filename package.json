@@ -17,6 +17,7 @@
   "scripts": {
     "dev": "tsx src/dev.ts",
     "cli": "tsx src/cli/main.ts",
+    "serve": "tsx src/cli/main.ts serve",
     "eval-compare": "tsx src/cli/main.ts eval-compare",
     "evaluate": "tsx src/cli/main.ts eval-compare",
     "dev:web": "sh -c 'if [ -f web/package.json ]; then npm --prefix web run dev; else echo \"web/ not set up yet\"; fi'",
